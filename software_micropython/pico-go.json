@@ -1,4 +1,4 @@
 {
-    "sync_folder": "",
-    "open_on_start": true
+  "sync_folder": "src",
+  "open_on_start": true
 }
