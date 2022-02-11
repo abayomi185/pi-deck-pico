@@ -1,0 +1,34 @@
+{
+  "keys": [
+    {
+      "key": "1",
+      "pin": "GP26",
+      "keycode": "KEYPAD_ONE"
+    },
+    {
+      "key": "2",
+      "pin": "GP27",
+      "keycode": "KEYPAD_TWO"
+    },
+    {
+      "key": "3",
+      "pin": "GP28",
+      "keycode": "KEYPAD_THREE"
+    },
+    {
+      "key": "4",
+      "pin": "GP4",
+      "keycode": "KEYPAD_FOUR"
+    },
+    {
+      "key": "5",
+      "pin": "GP3",
+      "keycode": "KEYPAD_FIVE"
+    },
+    {
+      "key": "6",
+      "pin": "GP2",
+      "keycode": "KEYPAD_SIX"
+    }
+  ]
+}
