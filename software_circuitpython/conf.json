@@ -1,5 +1,12 @@
 {
-  "keys": [
+  "display": {
+    "address": "0x3C",
+    "width": "128",
+    "height": "32",
+    "scl": "GP1",
+    "sda": "GP0"
+  },
+  "keypad": [
     {
       "key": "1",
       "pin": "GP26",
