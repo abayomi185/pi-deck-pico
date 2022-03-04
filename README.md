@@ -1,6 +1,7 @@
 # pi-deck-pico
 
 > This project replaces the abandoned [Pi-Deck](https://github.com/abayomi185/pi-deck) project
+> Design is susceptible to change in future; when I have time to re-design it.
 
 <img src="/images/IMG_4535.jpeg" width="300">
 <img src="/images/IMG_4536.jpeg" width="300">
