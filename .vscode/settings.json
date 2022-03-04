@@ -12,5 +12,16 @@
   ],
   "circuitpython.board.version": null,
   "circuitpython.board.vid": "0x239A",
-  "circuitpython.board.pid": "0x80F4"
+  "circuitpython.board.pid": "0x80F4",
+  "cmake.sourceDirectory": "${workspaceFolder}/software_cpp",
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "MicroPython.executeButton": [
+    {
+      "text": "▶",
+      "tooltip": "Run",
+      "alignment": "left",
+      "command": "extension.executeFile",
+      "priority": 3.5
+    }
+  ]
 }

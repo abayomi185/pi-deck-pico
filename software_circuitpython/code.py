@@ -6,6 +6,7 @@ import json
 import board
 import busio
 import digitalio
+import supervisor
 import displayio
 import terminalio
 import adafruit_ssd1306
@@ -18,6 +19,8 @@ from adafruit_hid.keycode import Keycode
 
 # getattr() function to get the value of a variable from a string
 # print("Waiting for key pin...")
+
+# https://www.youtube.com/watch?v=WSLSyBNua-4
 
 
 class ConfigHelper:
@@ -168,3 +171,13 @@ if __name__ == "__main__":
 # microcontroller
 # import supervisor
 # supervisor.reload()
+
+# Serial communication
+# while True:
+#     if supervisor.runtime.serial_bytes_available:
+#         value = input().strip()
+#         # Sometimes Windows sends an extra (or missing) newline - ignore them
+#         if value == "":
+#             continue
+#         else:
+#             print(value)
