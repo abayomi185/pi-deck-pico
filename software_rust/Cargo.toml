@@ -7,15 +7,16 @@ edition = "2018"
 
 [dependencies]
 rp-pico = "0.3.0"
-cortex-m = "0.7.2"
-cortex-m-rt = "0.7.0"
-panic-halt = "0.2.0"
 embedded-time = "0.12.0"
 embedded-hal ="0.2.5"
 ssd1306 = "0.7.0"
 
-[dev-dependencies]
+# [dev-dependencies]
+cortex-m = "0.7.2"
+cortex-m-rt = "0.7.0"
 cortex-m-rtic = "1.0.0"
+panic-halt = "0.2.0"
+embedded-graphics = "0.7.1"
 
 # [features]
 # default = ["boot2", "rt"]

@@ -1,7 +1,3 @@
-// fn main() {
-//     println!("Hello, world!");
-// }
-
 #![no_std]
 #![no_main]
 
@@ -28,6 +24,9 @@ use rp_pico::hal::pac;
 // A shorter alias for the Hardware Abstraction Layer, which provides
 // higher-level drivers.
 use rp_pico::hal;
+
+// ssd1306
+use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 
 /// Entry point to our bare-metal application.
 ///
