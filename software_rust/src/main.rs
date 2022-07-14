@@ -26,8 +26,15 @@ mod app {
     // USB Communications Class Device support
     use usbd_serial::SerialPort;
 
+    use embedded_graphics::{
+        image::{Image, ImageRaw},
+        pixelcolor::BinaryColor,
+        prelude::*,
+    };
+    use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
+
     // Blink time 5 seconds
-    const SCAN_TIME_US: u32 = 5000000;
+    // const SCAN_TIME_US: u32 = 5000000;
 
     #[shared]
     struct Shared {
@@ -35,6 +42,8 @@ mod app {
         alarm: hal::timer::Alarm0,
         // led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::PushPullOutput>,
         // led_blink_enable: bool,
+        pins: hal::gpio::Pins,
+
         serial: SerialPort<'static, hal::usb::UsbBus>,
         usb_dev: usb_device::device::UsbDevice<'static, hal::usb::UsbBus>,
     }
@@ -91,14 +100,26 @@ mod app {
             .build();
 
         let mut timer = hal::Timer::new(ctx.device.TIMER, &mut resets);
-        let mut alarm = timer.alarm_0().unwrap();
-        let _ = alarm.schedule(SCAN_TIME_US.microseconds());
-        alarm.enable_interrupt();
+        let alarm = timer.alarm_0().unwrap();
+        // let _ = alarm.schedule(SCAN_TIME_US.microseconds());
+        // alarm.enable_interrupt();
+
+        let mut peripherals = pac::Peripherals::take().unwrap();
+        let sio = hal::Sio::new(peripherals.SIO);
+        let pins = hal::gpio::Pins::new(
+            peripherals.IO_BANK0,
+            peripherals.PADS_BANK0,
+            sio.gpio_bank0,
+            &mut peripherals.RESETS,
+        );
+
+        // let mut i2c
 
         (
             Shared {
                 timer,
                 alarm,
+                pins,
                 serial,
                 usb_dev,
             },
