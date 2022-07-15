@@ -7,11 +7,12 @@ use panic_halt as _;
 
 #[rtic::app(device = rp_pico::hal::pac, peripherals = true)]
 mod app {
+
     use embedded_hal::digital::v2::OutputPin;
     // Time handling traits
-    use embedded_time::duration::Extensions;
+    // use embedded_time::duration::Extensions;
+    use embedded_time::rate::Extensions;
 
-    use rp_pico::hal::prelude::*;
     // A shorter alias for the Peripheral Access Crate, which provides low-level
     // register access
     // use rp_pico::hal::pac;
@@ -33,6 +34,14 @@ mod app {
     };
     use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 
+    type DisplayI2C = hal::I2C<
+        pac::I2C0,
+        (
+            hal::gpio::Pin<hal::gpio::bank0::Gpio0, hal::gpio::Function<hal::gpio::I2C>>,
+            hal::gpio::Pin<hal::gpio::bank0::Gpio1, hal::gpio::Function<hal::gpio::I2C>>,
+        ),
+    >;
+
     // Blink time 5 seconds
     // const SCAN_TIME_US: u32 = 5000000;
 
@@ -42,8 +51,18 @@ mod app {
         alarm: hal::timer::Alarm0,
         // led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::PushPullOutput>,
         // led_blink_enable: bool,
-        pins: hal::gpio::Pins,
-
+        // pins: hal::gpio::Pins,
+        // i2c: hal::i2c::I2C<i2c0, Pin>,
+        // display: ssd1306::Ssd1306<
+        //     ssd1306::I2CDisplayInterface,
+        //     ssd1306::size::DisplaySize128x32,
+        //     ssd1306::rotation::DisplayRotation,
+        // >,
+        display: Ssd1306<
+            I2CInterface<DisplayI2C>,
+            DisplaySize128x32,
+            ssd1306::mode::BufferedGraphicsMode<DisplaySize128x32>,
+        >,
         serial: SerialPort<'static, hal::usb::UsbBus>,
         usb_dev: usb_device::device::UsbDevice<'static, hal::usb::UsbBus>,
     }
@@ -104,22 +123,39 @@ mod app {
         // let _ = alarm.schedule(SCAN_TIME_US.microseconds());
         // alarm.enable_interrupt();
 
-        let mut peripherals = pac::Peripherals::take().unwrap();
-        let sio = hal::Sio::new(peripherals.SIO);
+        let sio = hal::Sio::new(ctx.device.SIO);
         let pins = hal::gpio::Pins::new(
-            peripherals.IO_BANK0,
-            peripherals.PADS_BANK0,
+            ctx.device.IO_BANK0,
+            ctx.device.PADS_BANK0,
             sio.gpio_bank0,
-            &mut peripherals.RESETS,
+            &mut resets,
         );
 
-        // let mut i2c
+        let i2c = hal::i2c::I2C::i2c0(
+            ctx.device.I2C0,
+            pins.gpio0.into_mode(), // SDA
+            pins.gpio1.into_mode(), // SCL
+            400.kHz(),
+            &mut resets,
+            125_000_000.Hz(),
+        );
+
+        // Add instantiated Ssd1306 type to shared
+        let interface = I2CDisplayInterface::new(i2c);
+        let mut display = Ssd1306::new(interface, DisplaySize128x32, DisplayRotation::Rotate0)
+            .into_buffered_graphics_mode();
+        display.init().unwrap();
+
+        let raw: ImageRaw<BinaryColor> = ImageRaw::new(include_bytes!("./rust.raw"), 64);
+        let im = Image::new(&raw, Point::new(32, 0));
+        im.draw(&mut display).unwrap();
+        display.flush().unwrap();
 
         (
             Shared {
                 timer,
                 alarm,
-                pins,
+                display,
                 serial,
                 usb_dev,
             },
