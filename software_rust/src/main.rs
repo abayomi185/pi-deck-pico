@@ -44,7 +44,7 @@ mod app {
     >;
 
     // Blink time 5 seconds
-    const SCAN_TIME_US: u32 = 2000000;
+    const SCAN_TIME_US: u32 = 12000000;
 
     #[shared]
     struct Shared {
@@ -69,6 +69,7 @@ mod app {
         // input_pin_array: [hal::gpio::pin::bank0::Pins; 6],
         input_pin_array: [hal::gpio::dynpin::DynPin; 6],
         led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::PushPullOutput>,
+        led_blink_enable: bool,
         key_one: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio26, hal::gpio::PullUpInput>,
     }
 
@@ -139,6 +140,8 @@ mod app {
         let mut led = pins.gpio25.into_push_pull_output();
         led.set_high().unwrap();
 
+        let led_blink_enable = true;
+
         let i2c = hal::i2c::I2C::i2c0(
             ctx.device.I2C0,
             pins.gpio0.into_mode(), // SDA
@@ -192,6 +195,7 @@ mod app {
                 usb_dev,
                 input_pin_array,
                 led,
+                led_blink_enable,
                 key_one,
             },
             Local {},
@@ -233,6 +237,7 @@ mod app {
                     }
                     Ok(_count) => {
                         // match_usb_serial_buf(&buf, led_a, led_blink_enable_a, serial_a, counter_a);
+                        write_serial(serial_a, "I'm here", false)
                     }
                 }
             }
@@ -259,21 +264,35 @@ mod app {
         //     }
         // });
 
-        (led, key_one).lock(|led_a, key_one_a| {
-            if key_one_a.is_low().unwrap() {
-                led_a.set_low().unwrap();
-            } else {
-                led_a.set_high().unwrap();
-            }
-        });
+        // (led, key_one).lock(|led_a, key_one_a| {
+        //     if key_one_a.is_low().unwrap() {
+        //         led_a.set_low().unwrap();
+        //     } else {
+        //         led_a.set_high().unwrap();
+        //     }
+        // });
     }
 
-    #[task(binds = TIMER_IRQ_0, priority = 1, shared = [timer, alarm, led])]
+    //This works - timer_irq; LED light turns off after SCAN_TIME_US
+    #[task(binds = TIMER_IRQ_0, priority = 1, shared = [timer, alarm, led, led_blink_enable, serial], local = [tog: bool = true])]
     fn timer_irq(mut ctx: timer_irq::Context) {
-        let mut buf = [0u8; 64];
+        let buf = [0u8; 64];
 
         let led = ctx.shared.led;
+        let led_blink_enable = ctx.shared.led_blink_enable;
+        let tog = ctx.local.tog;
 
+        (led, led_blink_enable).lock(|led_a, led_blink_enable_a| {
+            if *led_blink_enable_a {
+                if *tog {
+                    led_a.set_low().unwrap();
+                } else {
+                    led_a.set_high().unwrap();
+                }
+            }
+        });
+
+        // Clears the timer interrupt and Set's the new delta_time in the future.
         let mut timer = ctx.shared.timer;
         let mut alarm = ctx.shared.alarm;
         (alarm).lock(|a| {
@@ -282,6 +301,43 @@ mod app {
                 let _ = a.schedule(SCAN_TIME_US.microseconds());
             });
         });
+
+        // Write the message "blabla! 2" do USB-Serial.
+        ctx.shared.serial.lock(|s| {
+            write_serial(s, unsafe { core::str::from_utf8_unchecked(&buf) }, false);
+        });
+    }
+
+    /// This function come from the github with USB-Serial example (see link above).
+    ///
+    /// Helper function to ensure all data is written across the serial interface.
+    fn write_serial(serial: &mut SerialPort<'static, hal::usb::UsbBus>, buf: &str, block: bool) {
+        let write_ptr = buf.as_bytes();
+
+        // Because the buffer is of constant size and initialized to zero (0) we here
+        // add a test to determine the size that's really occupied by the str that we
+        // wan't to send. From index zero to first byte that is as the zero byte value.
+        let mut index = 0;
+        while index < write_ptr.len() && write_ptr[index] != 0 {
+            index += 1;
+        }
+        let mut write_ptr = &write_ptr[0..index];
+
+        while !write_ptr.is_empty() {
+            match serial.write(write_ptr) {
+                Ok(len) => write_ptr = &write_ptr[len..],
+                // Meaning the USB write buffer is full
+                Err(UsbError::WouldBlock) => {
+                    if !block {
+                        break;
+                    }
+                }
+                // On error, just drop unwritten data.
+                Err(_) => break,
+            }
+        }
+        // let _ = serial.write("\n".as_bytes());
+        let _ = serial.flush();
     }
 
     // fn to_dynpin_array() -> [hal::gpio::dynpin::DynPin; 6] {
