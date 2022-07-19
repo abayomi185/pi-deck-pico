@@ -8,9 +8,9 @@ use panic_halt as _;
 #[rtic::app(device = rp_pico::hal::pac, peripherals = true)]
 mod app {
 
-    use embedded_hal::digital::v2::OutputPin;
+    use embedded_hal::digital::v2::{InputPin, OutputPin};
     // Time handling traits
-    // use embedded_time::duration::Extensions;
+    use embedded_time::duration::Extensions as _;
     use embedded_time::rate::Extensions;
 
     // A shorter alias for the Peripheral Access Crate, which provides low-level
@@ -19,6 +19,7 @@ mod app {
     // A shorter alias for the Hardware Abstraction Layer, which provides
     // higher-level drivers.
     use rp_pico::hal;
+    use rp_pico::hal::timer::Alarm;
     use rp_pico::pac;
     use rp_pico::XOSC_CRYSTAL_FREQ; // Directly imported
 
@@ -43,13 +44,12 @@ mod app {
     >;
 
     // Blink time 5 seconds
-    // const SCAN_TIME_US: u32 = 5000000;
+    const SCAN_TIME_US: u32 = 2000000;
 
     #[shared]
     struct Shared {
         timer: hal::Timer,
         alarm: hal::timer::Alarm0,
-        // led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::PushPullOutput>,
         // led_blink_enable: bool,
         // pins: hal::gpio::Pins,
         // i2c: hal::i2c::I2C<i2c0, Pin>,
@@ -65,6 +65,11 @@ mod app {
         >,
         serial: SerialPort<'static, hal::usb::UsbBus>,
         usb_dev: usb_device::device::UsbDevice<'static, hal::usb::UsbBus>,
+        // input_pin_array: [hal::gpio::Pin<hal::gpio::pin::bank0::Gpio26, hal::gpio::PullUpInput>; 6],
+        // input_pin_array: [hal::gpio::pin::bank0::Pins; 6],
+        input_pin_array: [hal::gpio::dynpin::DynPin; 6],
+        led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::PushPullOutput>,
+        key_one: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio26, hal::gpio::PullUpInput>,
     }
 
     #[local]
@@ -119,9 +124,9 @@ mod app {
             .build();
 
         let mut timer = hal::Timer::new(ctx.device.TIMER, &mut resets);
-        let alarm = timer.alarm_0().unwrap();
-        // let _ = alarm.schedule(SCAN_TIME_US.microseconds());
-        // alarm.enable_interrupt();
+        let mut alarm = timer.alarm_0().unwrap();
+        let _ = alarm.schedule(SCAN_TIME_US.microseconds());
+        alarm.enable_interrupt();
 
         let sio = hal::Sio::new(ctx.device.SIO);
         let pins = hal::gpio::Pins::new(
@@ -130,6 +135,9 @@ mod app {
             sio.gpio_bank0,
             &mut resets,
         );
+
+        let mut led = pins.gpio25.into_push_pull_output();
+        led.set_high().unwrap();
 
         let i2c = hal::i2c::I2C::i2c0(
             ctx.device.I2C0,
@@ -151,6 +159,30 @@ mod app {
         im.draw(&mut display).unwrap();
         display.flush().unwrap();
 
+        // let input_pin_array = [
+        //     pins.gpio26.into_pull_up_input(),
+        //     pins.gpio27.into_pull_up_input(),
+        //     pins.gpio28.into_pull_up_input(),
+        //     pins.gpio4.into_pull_up_input(),
+        //     pins.gpio3.into_pull_up_input(),
+        //     pins.gpio2.into_pull_up_input(),
+        // ];
+
+        let mut input_pin_array: [hal::gpio::dynpin::DynPin; 6] = [
+            pins.gpio13.into(),
+            pins.gpio27.into(),
+            pins.gpio28.into(),
+            pins.gpio4.into(),
+            pins.gpio3.into(),
+            pins.gpio2.into(),
+        ];
+
+        for pin in input_pin_array.iter_mut() {
+            pin.into_pull_up_input();
+        }
+
+        let key_one = pins.gpio26.into_pull_up_input();
+
         (
             Shared {
                 timer,
@@ -158,6 +190,9 @@ mod app {
                 display,
                 serial,
                 usb_dev,
+                input_pin_array,
+                led,
+                key_one,
             },
             Local {},
             init::Monotonics(),
@@ -203,4 +238,60 @@ mod app {
             }
         })
     }
+
+    #[task(binds = IO_IRQ_BANK0, priority = 4, shared = [input_pin_array, led, key_one])]
+    fn handle_switch(ctx: handle_switch::Context) {
+        let input_pin_array = ctx.shared.input_pin_array;
+        let led = ctx.shared.led;
+        let key_one = ctx.shared.key_one;
+
+        // for pin in input_pin_array.iter_mut() {
+        //     pin.into_pull_up_input();
+        // }
+
+        // (input_pin_array, led).lock(|input_pin_array_a, led_a| {
+        //     for pin in input_pin_array_a.iter_mut() {
+        //         if pin.is_low().unwrap() {
+        //             led_a.set_high().unwrap();
+        //         } else {
+        //             led_a.set_low().unwrap();
+        //         }
+        //     }
+        // });
+
+        (led, key_one).lock(|led_a, key_one_a| {
+            if key_one_a.is_low().unwrap() {
+                led_a.set_low().unwrap();
+            } else {
+                led_a.set_high().unwrap();
+            }
+        });
+    }
+
+    #[task(binds = TIMER_IRQ_0, priority = 1, shared = [timer, alarm, led])]
+    fn timer_irq(mut ctx: timer_irq::Context) {
+        let mut buf = [0u8; 64];
+
+        let led = ctx.shared.led;
+
+        let mut timer = ctx.shared.timer;
+        let mut alarm = ctx.shared.alarm;
+        (alarm).lock(|a| {
+            (timer).lock(|timer_a| {
+                a.clear_interrupt();
+                let _ = a.schedule(SCAN_TIME_US.microseconds());
+            });
+        });
+    }
+
+    // fn to_dynpin_array() -> [hal::gpio::dynpin::DynPin; 6] {
+    //     [
+    //         hal::gpio::dypin::DynPin::new(hal::gpio::pin0::P0_26),
+    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_27),
+    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_28),
+    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_4),
+    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_3),
+    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_2),
+    //     ]
+    // }
 }
