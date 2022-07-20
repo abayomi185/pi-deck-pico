@@ -50,6 +50,15 @@ mod app {
     // Blink time 5 seconds
     const SCAN_TIME_US: u32 = 12000000;
 
+    enum Button {
+        One(hal::gpio::Pin<hal::gpio::bank0::Gpio26, hal::gpio::PullUpInput>),
+        Two(hal::gpio::Pin<hal::gpio::bank0::Gpio27, hal::gpio::PullUpInput>),
+        Three(hal::gpio::Pin<hal::gpio::bank0::Gpio28, hal::gpio::PullUpInput>),
+        Four(hal::gpio::Pin<hal::gpio::bank0::Gpio4, hal::gpio::PullUpInput>),
+        Five(hal::gpio::Pin<hal::gpio::bank0::Gpio3, hal::gpio::PullUpInput>),
+        Six(hal::gpio::Pin<hal::gpio::bank0::Gpio2, hal::gpio::PullUpInput>),
+    }
+
     #[shared]
     struct Shared {
         timer: hal::timer::Timer,
@@ -72,7 +81,7 @@ mod app {
         // delay: hal::timer::CountDown<'static>,
         // input_pin_array: [hal::gpio::Pin<hal::gpio::pin::bank0::Gpio26, hal::gpio::PullUpInput>; 6],
         // input_pin_array: [hal::gpio::pin::bank0::Pins; 6],
-        input_pin_array: [hal::gpio::dynpin::DynPin; 6],
+        // input_pin_array: [hal::gpio::dynpin::DynPin; 6],
         led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::PushPullOutput>,
         led_blink_enable: bool,
         key_one: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio26, hal::gpio::PullUpInput>,
@@ -177,18 +186,19 @@ mod app {
         //     pins.gpio2.into_pull_up_input(),
         // ];
 
-        let mut input_pin_array: [hal::gpio::dynpin::DynPin; 6] = [
-            pins.gpio13.into(),
-            pins.gpio14.into(),
-            pins.gpio28.into(),
-            pins.gpio4.into(),
-            pins.gpio3.into(),
-            pins.gpio2.into(),
-        ];
+        // let mut input_pin_array: [hal::gpio::dynpin::DynPin; 6] = [
+        //     pins.gpio13.into(),
+        //     pins.gpio14.into(),
+        //     pins.gpio28.into(),
+        //     pins.gpio4.into(),
+        //     pins.gpio3.into(),
+        //     pins.gpio2.into(),
+        // ];
 
-        for pin in input_pin_array.iter_mut() {
-            pin.set_interrupt_enabled(EdgeLow, true);
-        }
+        // for pin in input_pin_array.iter_mut() {
+        //     let px = pin.try_into().unwrap();
+        //     px = px.set_interrupt_enabled(EdgeLow, true);
+        // }
 
         let key_one = pins.gpio26.into_mode();
         key_one.set_interrupt_enabled(EdgeLow, true);
@@ -201,7 +211,7 @@ mod app {
                 serial,
                 usb_dev,
                 // delay,
-                input_pin_array,
+                // input_pin_array,
                 led,
                 led_blink_enable,
                 key_one,
@@ -255,7 +265,7 @@ mod app {
     #[task(
         binds = IO_IRQ_BANK0,
         priority = 4,
-        shared = [input_pin_array, led, key_one, serial, timer]
+        shared = [led, key_one, serial, timer]
     )]
     fn handle_switch(ctx: handle_switch::Context) {
         // let input_pin_array = ctx.shared.input_pin_array;
