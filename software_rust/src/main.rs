@@ -5,16 +5,18 @@
 // be linked)
 use panic_halt as _;
 
+mod button;
+
 #[rtic::app(device = rp_pico::hal::pac, peripherals = true)]
 mod app {
 
     use embedded_hal::digital::v2::{InputPin, OutputPin};
     // Time handling traits
-    use embedded_hal::timer::CountDown;
     use embedded_time::duration::Extensions as _;
     use embedded_time::rate::Extensions;
 
-    use nb;
+    use heapless::String;
+    // use nb;
 
     // A shorter alias for the Peripheral Access Crate, which provides low-level
     // register access
@@ -31,6 +33,10 @@ mod app {
     use usb_device::{class_prelude::*, prelude::*};
     // USB Communications Class Device support
     use usbd_serial::SerialPort;
+    // USB HID Class Device support
+    use usbd_hid::descriptor::generator_prelude::*;
+    use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport};
+    use usbd_hid::hid_class::HIDClass;
 
     use embedded_graphics::{
         image::{Image, ImageRaw},
@@ -47,24 +53,16 @@ mod app {
         ),
     >;
 
+    use crate::button::Button;
+
     // Blink time 5 seconds
     const SCAN_TIME_US: u32 = 12000000;
-
-    enum Button {
-        One(hal::gpio::Pin<hal::gpio::bank0::Gpio26, hal::gpio::PullUpInput>),
-        Two(hal::gpio::Pin<hal::gpio::bank0::Gpio27, hal::gpio::PullUpInput>),
-        Three(hal::gpio::Pin<hal::gpio::bank0::Gpio28, hal::gpio::PullUpInput>),
-        Four(hal::gpio::Pin<hal::gpio::bank0::Gpio4, hal::gpio::PullUpInput>),
-        Five(hal::gpio::Pin<hal::gpio::bank0::Gpio3, hal::gpio::PullUpInput>),
-        Six(hal::gpio::Pin<hal::gpio::bank0::Gpio2, hal::gpio::PullUpInput>),
-    }
 
     #[shared]
     struct Shared {
         timer: hal::timer::Timer,
-        alarm: hal::timer::Alarm0,
-        // led_blink_enable: bool,
-        // pins: hal::gpio::Pins,
+        alarm0: hal::timer::Alarm0,
+        alarm1: hal::timer::Alarm1,
         // i2c: hal::i2c::I2C<i2c0, Pin>,
         // display: ssd1306::Ssd1306<
         //     ssd1306::I2CDisplayInterface,
@@ -77,14 +75,13 @@ mod app {
             ssd1306::mode::BufferedGraphicsMode<DisplaySize128x32>,
         >,
         serial: SerialPort<'static, hal::usb::UsbBus>,
+        usb_hid: HIDClass<'static, hal::usb::UsbBus>,
         usb_dev: usb_device::device::UsbDevice<'static, hal::usb::UsbBus>,
         // delay: hal::timer::CountDown<'static>,
-        // input_pin_array: [hal::gpio::Pin<hal::gpio::pin::bank0::Gpio26, hal::gpio::PullUpInput>; 6],
-        // input_pin_array: [hal::gpio::pin::bank0::Pins; 6],
-        // input_pin_array: [hal::gpio::dynpin::DynPin; 6],
-        led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::PushPullOutput>,
+        input_pin_array: [Button; 6],
+        led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::ReadableOutput>,
         led_blink_enable: bool,
-        key_one: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio26, hal::gpio::PullUpInput>,
+        key_one: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio13, hal::gpio::PullUpInput>,
     }
 
     #[local]
@@ -129,6 +126,7 @@ mod app {
 
         // Set up the USB Communications Class Device driver.
         let serial = SerialPort::new(usb_bus);
+        let usb_hid = HIDClass::new(usb_bus, MediaKeyboardReport::desc(), 60);
 
         // Create a USB device with a fake VID and PID
         let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
@@ -139,10 +137,12 @@ mod app {
             .build();
 
         let mut timer = hal::Timer::new(ctx.device.TIMER, &mut resets);
-        let mut alarm = timer.alarm_0().unwrap();
-        let _ = alarm.schedule(SCAN_TIME_US.microseconds());
-        alarm.enable_interrupt();
-        let mut delay = timer.count_down();
+        let mut alarm0 = timer.alarm_0().unwrap();
+        let _ = alarm0.schedule(SCAN_TIME_US.microseconds());
+        alarm0.enable_interrupt();
+        let alarm1 = timer.alarm_1().unwrap();
+        // Consider using a shared delay in future
+        // let mut delay = timer.count_down();
 
         let sio = hal::Sio::new(ctx.device.SIO);
         let pins = hal::gpio::Pins::new(
@@ -152,8 +152,10 @@ mod app {
             &mut resets,
         );
 
-        let mut led = pins.gpio25.into_push_pull_output();
+        // let mut led = pins.gpio25.into_push_pull_output();
+        let mut led = pins.gpio25.into_readable_output();
         led.set_high().unwrap();
+        // led.into_readable_output();
 
         let led_blink_enable = true;
 
@@ -177,41 +179,33 @@ mod app {
         im.draw(&mut display).unwrap();
         display.flush().unwrap();
 
-        // let input_pin_array = [
-        //     pins.gpio26.into_pull_up_input(),
-        //     pins.gpio27.into_pull_up_input(),
-        //     pins.gpio28.into_pull_up_input(),
-        //     pins.gpio4.into_pull_up_input(),
-        //     pins.gpio3.into_pull_up_input(),
-        //     pins.gpio2.into_pull_up_input(),
-        // ];
+        let input_pin_array: [Button; 6] = [
+            Button::One(pins.gpio26.into_mode()),
+            Button::Two(pins.gpio27.into_mode()),
+            Button::Three(pins.gpio28.into_mode()),
+            Button::Four(pins.gpio4.into_mode()),
+            Button::Five(pins.gpio3.into_mode()),
+            Button::Six(pins.gpio2.into_mode()),
+        ];
 
-        // let mut input_pin_array: [hal::gpio::dynpin::DynPin; 6] = [
-        //     pins.gpio13.into(),
-        //     pins.gpio14.into(),
-        //     pins.gpio28.into(),
-        //     pins.gpio4.into(),
-        //     pins.gpio3.into(),
-        //     pins.gpio2.into(),
-        // ];
+        for pin in input_pin_array.iter() {
+            pin.set_button_interrupt()
+        }
 
-        // for pin in input_pin_array.iter_mut() {
-        //     let px = pin.try_into().unwrap();
-        //     px = px.set_interrupt_enabled(EdgeLow, true);
-        // }
-
-        let key_one = pins.gpio26.into_mode();
+        let key_one = pins.gpio13.into_mode();
         key_one.set_interrupt_enabled(EdgeLow, true);
 
         (
             Shared {
                 timer,
-                alarm,
+                alarm0,
+                alarm1,
                 display,
                 serial,
+                usb_hid,
                 usb_dev,
                 // delay,
-                // input_pin_array,
+                input_pin_array,
                 led,
                 led_blink_enable,
                 key_one,
@@ -234,13 +228,14 @@ mod app {
     // #[task(shared = [])]
     // fn test_shared_task(mut ctx: test_shared_task::Context) {}
 
-    #[task(binds = USBCTRL_IRQ, priority = 3, shared = [serial, usb_dev])]
+    #[task(binds = USBCTRL_IRQ, priority = 3, shared = [serial, usb_dev, usb_hid])]
     fn usb_rx(ctx: usb_rx::Context) {
         let usb_dev = ctx.shared.usb_dev;
         let serial = ctx.shared.serial;
+        let usb_hid = ctx.shared.usb_hid;
 
-        (serial, usb_dev).lock(|serial_a, usb_dev_a| {
-            if usb_dev_a.poll(&mut [serial_a]) {
+        (serial, usb_dev, usb_hid).lock(|serial_a, usb_dev_a, usb_hid_a| {
+            if usb_dev_a.poll(&mut [serial_a, usb_hid_a]) {
                 let mut buf = [0u8; 64];
                 match serial_a.read(&mut buf) {
                     Err(_e) => {
@@ -258,6 +253,9 @@ mod app {
                         write_serial(serial_a, "I'm here", false)
                     }
                 }
+                // TODO: USB HID action here
+                // usb_hid_a.match
+                // let key = MediaKey
             }
         })
     }
@@ -265,49 +263,98 @@ mod app {
     #[task(
         binds = IO_IRQ_BANK0,
         priority = 4,
-        shared = [led, key_one, serial, timer]
+        shared = [led, key_one, serial, timer, alarm1, input_pin_array, usb_hid]
     )]
     fn handle_switch(ctx: handle_switch::Context) {
-        // let input_pin_array = ctx.shared.input_pin_array;
         let led = ctx.shared.led;
-        let key_one = ctx.shared.key_one;
+        // let key_one = ctx.shared.key_one;
+        let input_pin_array = ctx.shared.input_pin_array;
+        let usb_hid = ctx.shared.usb_hid;
 
-        let timer = ctx.shared.timer;
-        // let mut delay = ctx.shared.delay;
+        // let timer = ctx.shared.timer;
+        let alarm1 = ctx.shared.alarm1;
         let serial = ctx.shared.serial;
 
-        // for pin in input_pin_array.iter_mut() {
-        //     pin.into_pull_up_input();
-        // }
+        (serial, alarm1, input_pin_array, led, usb_hid).lock(
+            |serial_a, alarm_a, input_pin_array_a, led_a, usb_hid_a| {
+                // TODO: This is running multiple times, not expected behaviour.
+                // It does not break and turns off led as it turns it on except last key.
+                // Return boolean from is_low and use it to determine break.
+                // To possibly detect multiple keys, save keys pressed into array then act
+                // on it later.
 
-        // (input_pin_array, led).lock(|input_pin_array_a, led_a| {
-        //     for pin in input_pin_array_a.iter_mut() {
-        //         if pin.is_low().unwrap() {
-        //             led_a.set_high().unwrap();
-        //         } else {
+                // let mut delay = timer_a.count_down();
+                // delay.start(1000_u32.milliseconds());
+                // let _ = nb::block!(delay.wait());
+                // let mut delay_status = delay.wait();
+
+                let mut _break_flag: bool = false;
+
+                for (index, pin) in input_pin_array_a.iter_mut().enumerate() {
+                    let mut serial_message: String<8> = String::new();
+                    serial_message.push_str("\nKey ").unwrap();
+                    let index_string: String<1> = String::from(index as u8);
+                    serial_message.push_str(&index_string).unwrap();
+
+                    if pin.is_low() {
+                        _break_flag = true;
+                        // delay.start(200_u32.milliseconds());
+
+                        if alarm_a.finished() {
+                            write_serial(serial_a, serial_message.as_str(), false);
+                            if led_a.is_high().unwrap() {
+                                led_a.set_low().unwrap();
+                            } else {
+                                led_a.set_high().unwrap();
+                            }
+                        }
+                        // delay.start(200_u32.milliseconds());
+                        let _ = alarm_a.schedule(250000u32.microseconds());
+                    }
+                    if _break_flag {
+                        break;
+                    }
+                    // let res = pin.send_key(usb_hid_a);
+                    // match res {
+                    //     Ok(_) => {}
+                    //     Err(_) => {
+                    //         write_serial(
+                    //             serial_a,
+                    //             "\nError occured with keyboard interrupt.\n",
+                    //             false,
+                    //         );
+                    //     }
+                    // }
+                    // pin.clear_button_interrupt();
+                }
+                for pin in input_pin_array_a.iter_mut() {
+                    pin.clear_button_interrupt();
+                }
+            },
+        );
+
+        // (led, key_one, serial, timer).lock(|led_a, key_one_a, serial_a, timer_a| {
+        //     if key_one_a.is_low().unwrap() {
+        //         write_serial(serial_a, "Key pressed", false);
+        //         if led_a.is_high().unwrap() {
         //             led_a.set_low().unwrap();
+        //         } else {
+        //             led_a.set_high().unwrap();
         //         }
+        //         // set delay for switch debounce
+        //         let mut delay = timer_a.count_down();
+        //         delay.start(150_u32.milliseconds());
+        //         let _ = nb::block!(delay.wait());
         //     }
+        //     key_one_a.clear_interrupt(EdgeLow);
         // });
-
-        (led, key_one, serial, timer).lock(|led_a, key_one_a, serial_a, timer_a| {
-            if key_one_a.is_low().unwrap() {
-                write_serial(serial_a, "Key pressed", false);
-                led_a.set_low().unwrap();
-                // set delay for switch debounce
-                let mut delay = timer_a.count_down();
-                delay.start(150_u32.milliseconds());
-                let _ = nb::block!(delay.wait());
-            }
-            key_one_a.clear_interrupt(EdgeLow);
-        });
     }
 
     //This works - timer_irq; LED light turns off after SCAN_TIME_US
     #[task(
         binds = TIMER_IRQ_0,
         priority = 1,
-        shared = [timer, alarm, led, led_blink_enable, serial],
+        shared = [timer, alarm0, led, led_blink_enable, serial],
         local = [tog: bool = true]
     )]
     fn timer_irq(mut ctx: timer_irq::Context) {
@@ -329,11 +376,11 @@ mod app {
 
         // Clears the timer interrupt and Set's the new delta_time in the future.
         // let mut timer = ctx.shared.timer;
-        let mut alarm = ctx.shared.alarm;
-        (alarm).lock(|a| {
+        let mut alarm = ctx.shared.alarm0;
+        (alarm).lock(|alarm_a| {
             // (timer).lock(|timer_a| {
-            a.clear_interrupt();
-            let _ = a.schedule(SCAN_TIME_US.microseconds());
+            alarm_a.clear_interrupt();
+            let _ = alarm_a.schedule(SCAN_TIME_US.microseconds());
             // });
         });
 
