@@ -54,6 +54,7 @@ mod app {
     >;
 
     use crate::button::Button;
+    use crate::button::ButtonVariant;
 
     // Blink time 5 seconds
     const SCAN_TIME_US: u32 = 12000000;
@@ -78,7 +79,8 @@ mod app {
         usb_hid: HIDClass<'static, hal::usb::UsbBus>,
         usb_dev: usb_device::device::UsbDevice<'static, hal::usb::UsbBus>,
         // delay: hal::timer::CountDown<'static>,
-        input_pin_array: [Button; 6],
+        // input_pin_array: [Button; 6],
+        button_array: [Button; 6],
         led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::ReadableOutput>,
         led_blink_enable: bool,
         key_one: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio13, hal::gpio::PullUpInput>,
@@ -179,17 +181,32 @@ mod app {
         im.draw(&mut display).unwrap();
         display.flush().unwrap();
 
-        let input_pin_array: [Button; 6] = [
-            Button::One(pins.gpio26.into_mode()),
-            Button::Two(pins.gpio27.into_mode()),
-            Button::Three(pins.gpio28.into_mode()),
-            Button::Four(pins.gpio4.into_mode()),
-            Button::Five(pins.gpio3.into_mode()),
-            Button::Six(pins.gpio2.into_mode()),
+        // let bx = UserInput::new(Button::One(pins.gpio26.into_mode()));
+
+        // let input_pin_array: [Button; 6] = [
+        //     Button::One(pins.gpio26.into_mode()),
+        //     Button::Two(pins.gpio27.into_mode()),
+        //     Button::Three(pins.gpio28.into_mode()),
+        //     Button::Four(pins.gpio4.into_mode()),
+        //     Button::Five(pins.gpio3.into_mode()),
+        //     Button::Six(pins.gpio2.into_mode()),
+        // ];
+
+        let button_array: [Button; 6] = [
+            Button::new(ButtonVariant::One(pins.gpio26.into_mode())),
+            Button::new(ButtonVariant::Two(pins.gpio27.into_mode())),
+            Button::new(ButtonVariant::Three(pins.gpio28.into_mode())),
+            Button::new(ButtonVariant::Four(pins.gpio4.into_mode())),
+            Button::new(ButtonVariant::Five(pins.gpio3.into_mode())),
+            Button::new(ButtonVariant::Six(pins.gpio2.into_mode())),
         ];
 
-        for pin in input_pin_array.iter() {
-            pin.set_button_interrupt()
+        // for pin in input_pin_array.iter() {
+        //     pin.set_button_interrupt()
+        // }
+
+        for button in button_array.iter() {
+            button.variant.set_button_interrupt()
         }
 
         let key_one = pins.gpio13.into_mode();
@@ -205,7 +222,8 @@ mod app {
                 usb_hid,
                 usb_dev,
                 // delay,
-                input_pin_array,
+                // input_pin_array,
+                button_array,
                 led,
                 led_blink_enable,
                 key_one,
@@ -263,20 +281,20 @@ mod app {
     #[task(
         binds = IO_IRQ_BANK0,
         priority = 4,
-        shared = [led, key_one, serial, timer, alarm1, input_pin_array, usb_hid]
+        shared = [led, key_one, serial, timer, alarm1, button_array, usb_hid]
     )]
     fn handle_switch(ctx: handle_switch::Context) {
         let led = ctx.shared.led;
         // let key_one = ctx.shared.key_one;
-        let input_pin_array = ctx.shared.input_pin_array;
+        let button_array = ctx.shared.button_array;
         let usb_hid = ctx.shared.usb_hid;
 
         // let timer = ctx.shared.timer;
         let alarm1 = ctx.shared.alarm1;
         let serial = ctx.shared.serial;
 
-        (serial, alarm1, input_pin_array, led, usb_hid).lock(
-            |serial_a, alarm_a, input_pin_array_a, led_a, usb_hid_a| {
+        (serial, alarm1, button_array, led, usb_hid).lock(
+            |serial_a, alarm_a, button_array_a, led_a, usb_hid_a| {
                 // TODO: This is running multiple times, not expected behaviour.
                 // It does not break and turns off led as it turns it on except last key.
                 // Return boolean from is_low and use it to determine break.
@@ -290,15 +308,16 @@ mod app {
 
                 let mut _break_flag: bool = false;
 
-                for (index, pin) in input_pin_array_a.iter_mut().enumerate() {
+                for (index, button) in button_array_a.iter_mut().enumerate() {
                     let mut serial_message: String<8> = String::new();
                     serial_message.push_str("\nKey ").unwrap();
                     let index_string: String<1> = String::from(index as u8);
                     serial_message.push_str(&index_string).unwrap();
 
-                    if pin.is_low() {
+                    if button.variant.is_low().unwrap() {
                         _break_flag = true;
                         // delay.start(200_u32.milliseconds());
+                        button.is_pressed = true;
 
                         if alarm_a.finished() {
                             write_serial(serial_a, serial_message.as_str(), false);
@@ -314,6 +333,13 @@ mod app {
                     if _break_flag {
                         break;
                     }
+                    if button.variant.is_high().unwrap() {
+                        // Use this to detect when key is released.
+                        // Likely to be used with a state tracker that mutated
+                        // based on the key being pressed.
+                        button.is_pressed = false;
+                    }
+
                     // let res = pin.send_key(usb_hid_a);
                     // match res {
                     //     Ok(_) => {}
@@ -327,8 +353,8 @@ mod app {
                     // }
                     // pin.clear_button_interrupt();
                 }
-                for pin in input_pin_array_a.iter_mut() {
-                    pin.clear_button_interrupt();
+                for button in button_array_a.iter_mut() {
+                    button.variant.clear_button_interrupt();
                 }
             },
         );

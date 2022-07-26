@@ -6,7 +6,32 @@ use rp_pico::hal::gpio::Interrupt::EdgeLow;
 use usbd_hid::descriptor::{KeyboardReport, MediaKey, MediaKeyboardReport};
 use usbd_hid::hid_class::HIDClass;
 
-pub enum Button {
+pub struct Button {
+    pub variant: ButtonVariant,
+    pub is_pressed: bool,
+}
+
+impl Button {
+    pub fn new(variant: ButtonVariant) -> Self {
+        Self {
+            variant,
+            is_pressed: false,
+        }
+    }
+}
+
+// Trait example for future reference
+// trait ButtonDo {
+//     fn is_pressed(&self) -> bool;
+// }
+
+// impl ButtonDo for Button {
+//     fn is_pressed(&self) -> bool {
+//         self.is_pressed()
+//     }
+// }
+
+pub enum ButtonVariant {
     One(hal::gpio::Pin<hal::gpio::bank0::Gpio26, hal::gpio::FloatingInput>),
     Two(hal::gpio::Pin<hal::gpio::bank0::Gpio27, hal::gpio::FloatingInput>),
     Three(hal::gpio::Pin<hal::gpio::bank0::Gpio28, hal::gpio::FloatingInput>),
@@ -15,39 +40,53 @@ pub enum Button {
     Six(hal::gpio::Pin<hal::gpio::bank0::Gpio2, hal::gpio::FloatingInput>),
 }
 
-impl Button {
+impl ButtonVariant {
+    // TODO: I can use traits so I don't have to create and redeclare the gpio attr.
+    // Would've saved a lot of time.
+
     pub fn set_button_interrupt(&self) {
         match self {
-            Button::One(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            Button::Two(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            Button::Three(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            Button::Four(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            Button::Five(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            Button::Six(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
+            ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
+            ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
+            ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
+            ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
+            ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
+            ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
         }
     }
 
     pub fn clear_button_interrupt(&mut self) {
         match self {
-            Button::One(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
-            Button::Two(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
-            Button::Three(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
-            Button::Four(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
-            Button::Five(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
-            Button::Six(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::One(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Two(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Three(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Four(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Five(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Six(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
         }
     }
 
-    pub fn is_low(&self) -> bool {
-        match self {
-            Button::One(gpio) => gpio.is_low().unwrap(),
-            Button::Two(gpio) => gpio.is_low().unwrap(),
-            Button::Three(gpio) => gpio.is_low().unwrap(),
-            Button::Four(gpio) => gpio.is_low().unwrap(),
-            Button::Five(gpio) => gpio.is_low().unwrap(),
-            Button::Six(gpio) => gpio.is_low().unwrap(),
-        }
-    }
+    // pub fn is_low(&self) -> bool {
+    //     match self {
+    //         ButtonVariant::One(gpio) => gpio.is_low().unwrap(),
+    //         ButtonVariant::Two(gpio) => gpio.is_low().unwrap(),
+    //         ButtonVariant::Three(gpio) => gpio.is_low().unwrap(),
+    //         ButtonVariant::Four(gpio) => gpio.is_low().unwrap(),
+    //         ButtonVariant::Five(gpio) => gpio.is_low().unwrap(),
+    //         ButtonVariant::Six(gpio) => gpio.is_low().unwrap(),
+    //     }
+    // }
+
+    // pub fn is_high(&self) -> bool {
+    //     match self {
+    //         ButtonVariant::One(gpio) => gpio.is_high().unwrap(),
+    //         ButtonVariant::Two(gpio) => gpio.is_high().unwrap(),
+    //         ButtonVariant::Three(gpio) => gpio.is_high().unwrap(),
+    //         ButtonVariant::Four(gpio) => gpio.is_high().unwrap(),
+    //         ButtonVariant::Five(gpio) => gpio.is_high().unwrap(),
+    //         ButtonVariant::Six(gpio) => gpio.is_high().unwrap(),
+    //     }
+    // }
 
     // pub fn delay(&self) {
     //     let mut delay = timer_a.count_down();
@@ -64,12 +103,39 @@ impl Button {
         };
 
         match self {
-            Button::One(_) => hid.push_input(&media_play_report),
-            Button::Two(_) => hid.push_input(&media_play_report),
-            Button::Three(_) => hid.push_input(&media_play_report),
-            Button::Four(_) => hid.push_input(&media_play_report),
-            Button::Five(_) => hid.push_input(&media_play_report),
-            Button::Six(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Two(_) => hid.push_input(&media_play_report),
+            ButtonVariant::One(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Three(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Four(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Five(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Six(_) => hid.push_input(&media_play_report),
+        }
+    }
+}
+
+impl InputPin for ButtonVariant {
+    // alias for the Error type
+    type Error = core::convert::Infallible;
+
+    fn is_high(&self) -> Result<bool, Self::Error> {
+        match self {
+            ButtonVariant::One(gpio) => gpio.is_high(),
+            ButtonVariant::Two(gpio) => gpio.is_high(),
+            ButtonVariant::Three(gpio) => gpio.is_high(),
+            ButtonVariant::Four(gpio) => gpio.is_high(),
+            ButtonVariant::Five(gpio) => gpio.is_high(),
+            ButtonVariant::Six(gpio) => gpio.is_high(),
+        }
+    }
+
+    fn is_low(&self) -> Result<bool, Self::Error> {
+        match self {
+            ButtonVariant::One(gpio) => gpio.is_high(),
+            ButtonVariant::Two(gpio) => gpio.is_high(),
+            ButtonVariant::Three(gpio) => gpio.is_high(),
+            ButtonVariant::Four(gpio) => gpio.is_high(),
+            ButtonVariant::Five(gpio) => gpio.is_high(),
+            ButtonVariant::Six(gpio) => gpio.is_high(),
         }
     }
 }
