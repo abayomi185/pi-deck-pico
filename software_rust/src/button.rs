@@ -1,7 +1,7 @@
 use embedded_hal::digital::v2::InputPin;
 
 use rp_pico::hal;
-use rp_pico::hal::gpio::Interrupt::EdgeLow;
+use rp_pico::hal::gpio::Interrupt::{EdgeHigh, EdgeLow};
 
 use usbd_hid::descriptor::{KeyboardReport, MediaKey, MediaKeyboardReport};
 use usbd_hid::hid_class::HIDClass;
@@ -53,6 +53,15 @@ impl ButtonVariant {
             ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
             ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
         }
+
+        match self {
+            ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
+            ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
+            ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
+            ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
+            ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
+            ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
+        }
     }
 
     pub fn clear_button_interrupt(&mut self) {
@@ -65,28 +74,6 @@ impl ButtonVariant {
             ButtonVariant::Six(ref mut gpio) => gpio.clear_interrupt(EdgeLow),
         }
     }
-
-    // pub fn is_low(&self) -> bool {
-    //     match self {
-    //         ButtonVariant::One(gpio) => gpio.is_low().unwrap(),
-    //         ButtonVariant::Two(gpio) => gpio.is_low().unwrap(),
-    //         ButtonVariant::Three(gpio) => gpio.is_low().unwrap(),
-    //         ButtonVariant::Four(gpio) => gpio.is_low().unwrap(),
-    //         ButtonVariant::Five(gpio) => gpio.is_low().unwrap(),
-    //         ButtonVariant::Six(gpio) => gpio.is_low().unwrap(),
-    //     }
-    // }
-
-    // pub fn is_high(&self) -> bool {
-    //     match self {
-    //         ButtonVariant::One(gpio) => gpio.is_high().unwrap(),
-    //         ButtonVariant::Two(gpio) => gpio.is_high().unwrap(),
-    //         ButtonVariant::Three(gpio) => gpio.is_high().unwrap(),
-    //         ButtonVariant::Four(gpio) => gpio.is_high().unwrap(),
-    //         ButtonVariant::Five(gpio) => gpio.is_high().unwrap(),
-    //         ButtonVariant::Six(gpio) => gpio.is_high().unwrap(),
-    //     }
-    // }
 
     // pub fn delay(&self) {
     //     let mut delay = timer_a.count_down();
@@ -130,12 +117,12 @@ impl InputPin for ButtonVariant {
 
     fn is_low(&self) -> Result<bool, Self::Error> {
         match self {
-            ButtonVariant::One(gpio) => gpio.is_high(),
-            ButtonVariant::Two(gpio) => gpio.is_high(),
-            ButtonVariant::Three(gpio) => gpio.is_high(),
-            ButtonVariant::Four(gpio) => gpio.is_high(),
-            ButtonVariant::Five(gpio) => gpio.is_high(),
-            ButtonVariant::Six(gpio) => gpio.is_high(),
+            ButtonVariant::One(gpio) => gpio.is_low(),
+            ButtonVariant::Two(gpio) => gpio.is_low(),
+            ButtonVariant::Three(gpio) => gpio.is_low(),
+            ButtonVariant::Four(gpio) => gpio.is_low(),
+            ButtonVariant::Five(gpio) => gpio.is_low(),
+            ButtonVariant::Six(gpio) => gpio.is_low(),
         }
     }
 }
