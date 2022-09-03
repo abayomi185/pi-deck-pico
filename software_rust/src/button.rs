@@ -5,6 +5,7 @@ use rp_pico::hal::gpio::Interrupt::{EdgeHigh, EdgeLow};
 
 use usbd_hid::descriptor::{KeyboardReport, MediaKey, MediaKeyboardReport};
 use usbd_hid::hid_class::HIDClass;
+use usbd_hid::UsbError;
 
 pub struct Button {
     pub variant: ButtonVariant,
@@ -81,21 +82,46 @@ impl ButtonVariant {
     //     let _ = nb::block!(delay.wait());
     // }
 
-    pub fn send_key(
-        &self,
-        hid: &HIDClass<'static, hal::usb::UsbBus>,
-    ) -> Result<usize, usb_device::UsbError> {
+    pub fn send_key(&self, hid: &HIDClass<'static, hal::usb::UsbBus>) -> Result<usize, UsbError> {
         let media_play_report = MediaKeyboardReport {
             usage_id: MediaKey::Play as u16,
         };
 
+        let keyboard_report = KeyboardReport {
+            modifier: 0,
+            reserved: 0,
+            leds: 0,
+            keycodes: [0, 0, 0x09, 0, 0, 0],
+        };
+
         match self {
-            ButtonVariant::Two(_) => hid.push_input(&media_play_report),
             ButtonVariant::One(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Two(_) => hid.push_input(&keyboard_report),
             ButtonVariant::Three(_) => hid.push_input(&media_play_report),
-            ButtonVariant::Four(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Four(_) => hid.push_input(&keyboard_report),
             ButtonVariant::Five(_) => hid.push_input(&media_play_report),
-            ButtonVariant::Six(_) => hid.push_input(&media_play_report),
+            ButtonVariant::Six(_) => hid.push_input(&keyboard_report),
+        }
+    }
+
+    pub fn release_key(
+        &self,
+        hid: &HIDClass<'static, hal::usb::UsbBus>,
+    ) -> Result<usize, UsbError> {
+        let keyboard_report = KeyboardReport {
+            modifier: 0,
+            reserved: 0,
+            leds: 0,
+            keycodes: [0, 0, 0, 0, 0, 0],
+        };
+
+        match self {
+            ButtonVariant::One(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::Two(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::Three(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::Four(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::Five(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::Six(_) => hid.push_input(&keyboard_report),
         }
     }
 }

@@ -12,9 +12,12 @@ mod app {
 
     use embedded_hal::digital::v2::{InputPin, OutputPin};
     // Time handling traits
-    use embedded_time::duration::Extensions as _;
-    use embedded_time::rate::Extensions;
 
+    // use embedded_time::rate::Extensions;
+    use fugit::MicrosDurationU32;
+    use fugit::RateExtU32;
+
+    use fugit::SecsDurationU32;
     use heapless::String;
     // use nb;
 
@@ -24,7 +27,6 @@ mod app {
     // A shorter alias for the Hardware Abstraction Layer, which provides
     // higher-level drivers.
     use rp_pico::hal;
-    use rp_pico::hal::gpio::Interrupt::EdgeLow;
     use rp_pico::hal::timer::Alarm;
     use rp_pico::pac;
     use rp_pico::XOSC_CRYSTAL_FREQ; // Directly imported
@@ -57,7 +59,8 @@ mod app {
     use crate::button::ButtonVariant;
 
     // Blink time 5 seconds
-    const SCAN_TIME_US: u32 = 12000000;
+    // const SCAN_TIME_US: u32 = 12000000;
+    const SCAN_TIME_US: SecsDurationU32 = SecsDurationU32::secs(12);
 
     #[shared]
     struct Shared {
@@ -139,7 +142,8 @@ mod app {
 
         let mut timer = hal::Timer::new(ctx.device.TIMER, &mut resets);
         let mut alarm0 = timer.alarm_0().unwrap();
-        let _ = alarm0.schedule(SCAN_TIME_US.microseconds());
+        let _ = alarm0.schedule(SCAN_TIME_US);
+        // let _ = alarm0.schedule();
         alarm0.enable_interrupt();
         let alarm1 = timer.alarm_1().unwrap();
         let alarm2 = timer.alarm_2().unwrap();
@@ -168,7 +172,7 @@ mod app {
             pins.gpio1.into_mode(), // SCL
             400.kHz(),
             &mut resets,
-            125_000_000.Hz(),
+            &clocks.system_clock,
         );
 
         // Add instantiated Ssd1306 type to shared
@@ -182,15 +186,6 @@ mod app {
         im.draw(&mut display).unwrap();
         display.flush().unwrap();
 
-        // let input_pin_array: [Button; 6] = [
-        //     Button::One(pins.gpio26.into_mode()),
-        //     Button::Two(pins.gpio27.into_mode()),
-        //     Button::Three(pins.gpio28.into_mode()),
-        //     Button::Four(pins.gpio4.into_mode()),
-        //     Button::Five(pins.gpio3.into_mode()),
-        //     Button::Six(pins.gpio2.into_mode()),
-        // ];
-
         let button_array: [Button; 6] = [
             Button::new(ButtonVariant::One(pins.gpio26.into_mode())),
             Button::new(ButtonVariant::Two(pins.gpio27.into_mode())),
@@ -199,10 +194,6 @@ mod app {
             Button::new(ButtonVariant::Five(pins.gpio3.into_mode())),
             Button::new(ButtonVariant::Six(pins.gpio2.into_mode())),
         ];
-
-        // for pin in input_pin_array.iter() {
-        //     pin.set_button_interrupt()
-        // }
 
         for button in button_array.iter() {
             button.variant.set_button_interrupt()
@@ -317,8 +308,11 @@ mod app {
                             } else {
                                 led_a.set_high().unwrap();
                             }
+                            let val = button.variant.send_key(usb_hid_a);
+                            // let val_string: String<1> = String::from(val as u8);
+                            // write_serial(serial_a, val.as_str(), false);
                         }
-                        let _ = alarm_a.schedule(250000u32.microseconds());
+                        let _ = alarm_a.schedule(MicrosDurationU32::micros(250000));
                     }
                     // let res = pin.send_key(usb_hid_a);
                     // match res {
@@ -349,6 +343,7 @@ mod app {
                             button.is_pressed = false;
                             serial_message.push_str("R").unwrap();
                             write_serial(serial_a, serial_message.as_str(), false);
+                            let _ = button.variant.release_key(usb_hid_a);
                         }
                     }
                 }
@@ -406,7 +401,7 @@ mod app {
         (alarm).lock(|alarm_a| {
             // (timer).lock(|timer_a| {
             alarm_a.clear_interrupt();
-            let _ = alarm_a.schedule(SCAN_TIME_US.microseconds());
+            let _ = alarm_a.schedule(SCAN_TIME_US);
             // });
         });
 
@@ -447,15 +442,4 @@ mod app {
         // let _ = serial.write("\n".as_bytes());
         let _ = serial.flush();
     }
-
-    // fn to_dynpin_array() -> [hal::gpio::dynpin::DynPin; 6] {
-    //     [
-    //         hal::gpio::dypin::DynPin::new(hal::gpio::pin0::P0_26),
-    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_27),
-    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_28),
-    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_4),
-    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_3),
-    //         hal::gpio::dynpin::DynPin::new(hal::gpio::pin0::P0_2),
-    //     ]
-    // }
 }
