@@ -6,6 +6,7 @@
 use panic_halt as _;
 
 mod button;
+mod debouncer;
 
 #[rtic::app(device = rp_pico::hal::pac, peripherals = true)]
 mod app {
@@ -181,6 +182,8 @@ mod app {
             .into_buffered_graphics_mode();
         display.init().unwrap();
 
+        // Create raw with imagemagick
+        // https://github.com/jamwaffles/ssd1331/issues/10#issuecomment-787125252
         let raw: ImageRaw<BinaryColor> = ImageRaw::new(include_bytes!("./rust.raw"), 64);
         let im = Image::new(&raw, Point::new(32, 0));
         im.draw(&mut display).unwrap();
@@ -275,100 +278,95 @@ mod app {
         let button_array = ctx.shared.button_array;
         let usb_hid = ctx.shared.usb_hid;
 
-        // let timer = ctx.shared.timer;
+        let timer = ctx.shared.timer;
         let alarm1 = ctx.shared.alarm1;
         let alarm2 = ctx.shared.alarm2;
         let serial = ctx.shared.serial;
 
-        (serial, alarm1, alarm2, button_array, led, usb_hid).lock(
-            |serial_a, alarm_a, alarm_b, button_array_a, led_a, usb_hid_a| {
+        (serial, timer, alarm1, alarm2, button_array, led, usb_hid).lock(
+            |serial_a, timer_a, alarm_a, alarm_b, button_array_a, led_a, usb_hid_a| {
                 // TODO: This is running multiple times, not expected behaviour.
                 // It does not break and turns off led as it turns it on except last key.
                 // Return boolean from is_low and use it to determine break.
                 // To possibly detect multiple keys, save keys pressed into array then act
                 // on it later.
 
-                // let mut delay = timer_a.count_down();
-                // delay.start(1000_u32.milliseconds());
-                // let _ = nb::block!(delay.wait());
-                // let mut delay_status = delay.wait();
-
                 for (index, button) in button_array_a.iter_mut().enumerate() {
                     let mut serial_message: String<8> = String::new();
+                    let mut serial_message_2: String<8> = String::new();
+                    let mut serial_message_3: String<8> = String::new();
                     serial_message.push_str("\nKey ").unwrap();
+                    serial_message_2.push_str("press").unwrap();
+                    // serial_message_3.push_str("npress").unwrap();
                     let index_string: String<1> = String::from(index as u8);
                     serial_message.push_str(&index_string).unwrap();
 
-                    if button.variant.is_low().unwrap() {
-                        if alarm_a.finished() {
-                            button.is_pressed = true;
-                            write_serial(serial_a, serial_message.as_str(), false);
-                            if led_a.is_high().unwrap() {
-                                led_a.set_low().unwrap();
-                            } else {
-                                led_a.set_high().unwrap();
-                            }
-                            let val = button.variant.send_key(usb_hid_a);
-                            // let val_string: String<1> = String::from(val as u8);
-                            // write_serial(serial_a, val.as_str(), false);
+                    button.debounce(timer_a, button.variant.is_low().unwrap());
+                    // write_serial(serial_a, serial_message.as_str(), false);
+
+                    if button.is_pressed {
+                        if led_a.is_low().unwrap() {
+                            led_a.set_high().unwrap();
+                        } else {
+                            led_a.set_low().unwrap();
                         }
-                        let _ = alarm_a.schedule(MicrosDurationU32::micros(250000));
+                        // let current_time = timer_a.get_counter_low();
+                        // serial_message_3
+                        // .push_str(&String::<32>::from(current_time as u32))
+                        // .unwrap();
+                        // write_serial(serial_a, serial_message_3.as_str(), false);
+                        write_serial(serial_a, serial_message_2.as_str(), false);
+
+                        // Reset the button on debouncer and button
+                        button.is_pressed = false;
+
+                        // TODO: I think the interrupt might be interferring with the debouncer
                     }
-                    // let res = pin.send_key(usb_hid_a);
-                    // match res {
-                    //     Ok(_) => {}
-                    //     Err(_) => {
-                    //         write_serial(
-                    //             serial_a,
-                    //             "\nError occured with keyboard interrupt.\n",
-                    //             false,
-                    //         );
-                    //     }
+                    // else {
+                    //     write_serial(serial_a, serial_message_3.as_str(), false);
                     // }
-                    // pin.clear_button_interrupt();
+
+                    // if button.variant.is_low().unwrap() {
+                    //     if alarm_a.finished() {
+                    //         button.is_pressed = true;
+                    //         if led_a.is_high().unwrap() {
+                    //             led_a.set_low().unwrap();
+                    //         } else {
+                    //             led_a.set_high().unwrap();
+                    //         }
+                    //         let _ = button.variant.send_key(usb_hid_a);
+                    //     }
+                    //     let _ = alarm_a.schedule(MicrosDurationU32::micros(250000));
+                    // }
                 }
 
-                for (index, button) in button_array_a.iter_mut().enumerate() {
-                    let mut serial_message: String<8> = String::new();
-                    serial_message.push_str("\nKey ").unwrap();
-                    let index_string: String<1> = String::from(index as u8);
-                    serial_message.push_str(&index_string).unwrap();
+                // for (index, button) in button_array_a.iter_mut().enumerate() {
+                //     let mut serial_message: String<8> = String::new();
+                //     serial_message.push_str("\nKey ").unwrap();
+                //     let index_string: String<1> = String::from(index as u8);
+                //     serial_message.push_str(&index_string).unwrap();
 
-                    if button.variant.is_high().unwrap() {
-                        // Use this to detect when key is released.
-                        // Likely to be used with a state tracker that mutated
-                        // based on the key being pressed.
+                //     // if button.variant.is_high().unwrap() {
+                //     //     // Use this to detect when key is released.
+                //     //     // Likely to be used with a state tracker that mutated
+                //     //     // based on the key being pressed.
 
-                        if button.is_pressed {
-                            button.is_pressed = false;
-                            serial_message.push_str("R").unwrap();
-                            write_serial(serial_a, serial_message.as_str(), false);
-                            let _ = button.variant.release_key(usb_hid_a);
-                        }
-                    }
-                }
+                //     //     if button.is_pressed {
+                //     //         button.is_pressed = false;
+                //     //         serial_message.push_str("R").unwrap();
+                //     //         write_serial(serial_a, serial_message.as_str(), false);
+                //     //         let _ = button.variant.release_key(usb_hid_a);
+                //     //     }
+                //     // }
 
-                for button in button_array_a.iter_mut() {
-                    button.variant.clear_button_interrupt();
-                }
+                //     // something here
+                // }
+
+                // for button in button_array_a.iter_mut() {
+                //     button.variant.clear_button_interrupt();
+                // }
             },
         );
-
-        // (led, key_one, serial, timer).lock(|led_a, key_one_a, serial_a, timer_a| {
-        //     if key_one_a.is_low().unwrap() {
-        //         write_serial(serial_a, "Key pressed", false);
-        //         if led_a.is_high().unwrap() {
-        //             led_a.set_low().unwrap();
-        //         } else {
-        //             led_a.set_high().unwrap();
-        //         }
-        //         // set delay for switch debounce
-        //         let mut delay = timer_a.count_down();
-        //         delay.start(150_u32.milliseconds());
-        //         let _ = nb::block!(delay.wait());
-        //     }
-        //     key_one_a.clear_interrupt(EdgeLow);
-        // });
     }
 
     //This works - timer_irq; LED light turns off after SCAN_TIME_US
