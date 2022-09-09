@@ -7,20 +7,25 @@ use usbd_hid::descriptor::{KeyboardReport, MediaKey, MediaKeyboardReport, Serial
 use usbd_hid::hid_class::HIDClass;
 use usbd_hid::UsbError;
 
+use heapless::Vec;
+
 use crate::debouncer::Debouncer;
 
 pub struct Button {
     pub variant: ButtonVariant,
     debouncer: Debouncer,
     pub is_pressed: bool,
+    pub to_be_released: bool,
 }
 
 impl Button {
     pub fn new(variant: ButtonVariant) -> Self {
         Self {
             variant,
-            debouncer: Debouncer::new(5_000),
+            // 25ms debounce
+            debouncer: Debouncer::new(25_000),
             is_pressed: false,
+            to_be_released: false,
         }
     }
 
@@ -28,7 +33,42 @@ impl Button {
         let current_time = timer.get_counter_low();
         self.debouncer.update(current_time, current_state);
         self.is_pressed = self.debouncer.stabilised_state;
+        // self.is_released = {
+        //     let mut val = false;
+        //     if !self.debouncer.stabilised_state && self.debouncer.is_debounced {
+        //         val = true
+        //     }
+        //     val
+        // }
     }
+
+    pub fn reset(&mut self) {
+        self.debouncer.current_state = false;
+        self.debouncer.stabilised_state = false;
+        self.is_pressed = false;
+    }
+
+    pub fn is_released(&mut self) -> bool {
+        if !self.debouncer.stabilised_state && !self.debouncer.current_state {
+            return true;
+        }
+        false
+    }
+
+    // pub fn is_pressed(&mut self) {
+    //     if self.debouncer.stabilised_state {
+    //         self.is_pressed = true;
+    //         self.is_released = false;
+    //     } else {
+    //         self.is_released = true;
+    //         self.is_pressed = false;
+    //     }
+    // }
+}
+
+// TODO: Implement a stack for concurrently pressed buttons to send via usb_hid
+struct ReportStack {
+    stack: Vec<KeyboardReport, 6>,
 }
 
 // Trait example for future reference
@@ -55,27 +95,29 @@ impl ButtonVariant {
     // TODO: I can use traits so I don't have to create and redeclare the gpio attr.
     // Would've saved a lot of time.
 
-    pub fn set_button_interrupt(&self) {
+    pub fn set_button_low_interrupt(&self, set_state: bool) {
         match self {
-            ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
-            ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeLow, true),
+            ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
         }
-
-        // match self {
-        //     ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
-        //     ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
-        //     ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
-        //     ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
-        //     ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
-        //     ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeHigh, true),
-        // }
     }
 
-    pub fn clear_button_interrupt(&mut self) {
+    pub fn set_button_high_interrupt(&self, set_state: bool) {
+        match self {
+            ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+        }
+    }
+
+    pub fn clear_button_low_interrupt(&mut self) {
         match self {
             ButtonVariant::One(gpio) => gpio.clear_interrupt(EdgeLow),
             ButtonVariant::Two(gpio) => gpio.clear_interrupt(EdgeLow),
@@ -86,11 +128,16 @@ impl ButtonVariant {
         }
     }
 
-    // pub fn delay(&self) {
-    //     let mut delay = timer_a.count_down();
-    //     delay.start(150_u32.milliseconds());
-    //     let _ = nb::block!(delay.wait());
-    // }
+    pub fn clear_button_high_interrupt(&mut self) {
+        match self {
+            ButtonVariant::One(gpio) => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Two(gpio) => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Three(gpio) => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Four(gpio) => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Five(gpio) => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Six(gpio) => gpio.clear_interrupt(EdgeHigh),
+        }
+    }
 
     pub fn send_key(&self, hid: &HIDClass<'static, hal::usb::UsbBus>) -> Result<usize, UsbError> {
         let play_pause_report = MediaKeyboardReport {
