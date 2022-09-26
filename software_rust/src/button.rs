@@ -10,6 +10,7 @@ use usbd_hid::UsbError;
 use heapless::Vec;
 
 use crate::debouncer::Debouncer;
+use crate::{gen_keyboard_report, gen_media_report};
 
 pub struct Button {
     pub variant: ButtonVariant,
@@ -152,20 +153,22 @@ impl ButtonVariant {
             usage_id: MediaKey::VolumeDecrement as u16,
         };
 
-        let keyboard_report = KeyboardReport {
-            modifier: 0,
-            reserved: 0,
-            leds: 0,
-            keycodes: [0x38, 0, 0, 0, 0, 0],
-        };
+        // let keyboard_report = KeyboardReport {
+        //     modifier: 0,
+        //     reserved: 0,
+        //     leds: 0,
+        //     keycodes: [0x38, 0, 0, 0, 0, 0],
+        // };
+        let keyboard_report = gen_keyboard_report!(0x04);
+        let media_report = gen_media_report!(MediaKey::Play);
 
         match self {
-            ButtonVariant::One(_) => hid.push_input(&play_pause_report),
-            ButtonVariant::Two(_) => hid.push_input(&keyboard_report),
-            ButtonVariant::Three(_) => hid.push_input(&volume_down_report),
-            ButtonVariant::Four(_) => hid.push_input(&volume_up_report),
-            ButtonVariant::Five(_) => hid.push_input(&play_pause_report),
-            ButtonVariant::Six(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::One(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::Two(_) => hid.push_input(&media_report),
+            ButtonVariant::Three(_) => hid.push_input(&gen_keyboard_report!(0x05)),
+            ButtonVariant::Four(_) => hid.push_input(&gen_keyboard_report!(0x06)),
+            ButtonVariant::Five(_) => hid.push_input(&gen_keyboard_report!(0x72)),
+            ButtonVariant::Six(_) => hid.push_input(&gen_keyboard_report!(0x73)),
         }
     }
 

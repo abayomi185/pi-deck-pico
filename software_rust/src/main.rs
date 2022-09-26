@@ -7,6 +7,8 @@ use panic_halt as _;
 
 mod button;
 mod debouncer;
+#[macro_use]
+mod macros;
 
 #[rtic::app(device = rp_pico::hal::pac, peripherals = true)]
 mod app {
@@ -343,6 +345,9 @@ mod app {
                             .unwrap();
                         write_serial(serial_a, serial_message_3.as_str(), false);
 
+                        // usb_action
+                        let _ = button.variant.send_key(usb_hid_a);
+
                         //     let _ = led_a.toggle();
                         // button.variant.clear_button_high_interrupt();
                         button.variant.set_button_high_interrupt(false);
@@ -363,6 +368,8 @@ mod app {
                         write_serial(serial_a, serial_message_2.as_str(), false);
 
                         let _ = led_a.toggle();
+                        let _ = button.variant.release_key(usb_hid_a);
+
                         // button.variant.clear_button_low_interrupt();
                         // button.variant.set_button_low_interrupt(false);
                         button.variant.set_button_high_interrupt(true);

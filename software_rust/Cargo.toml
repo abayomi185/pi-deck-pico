@@ -33,7 +33,6 @@ fugit = "0.3.6"
 # [dev-dependencies]
 # flip-link = "0.1.5"
 
-
 # [features]
 # default = ["boot2", "rt"]
 # boot2 = ["rp2040-boot2"]
