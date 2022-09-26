@@ -141,21 +141,6 @@ impl ButtonVariant {
     }
 
     pub fn send_key(&self, hid: &HIDClass<'static, hal::usb::UsbBus>) -> Result<usize, UsbError> {
-        let play_pause_report = MediaKeyboardReport {
-            usage_id: MediaKey::Play as u16,
-        };
-
-        let volume_up_report = MediaKeyboardReport {
-            usage_id: MediaKey::VolumeIncrement as u16,
-        };
-
-        let volume_down_report = MediaKeyboardReport {
-            usage_id: MediaKey::VolumeDecrement as u16,
-        };
-
-        let keyboard_report = gen_keyboard_report!(0x04);
-        let media_report = gen_media_report!(MediaKey::Play);
-
         match self {
             ButtonVariant::One(_) => hid.push_input(&gen_keyboard_report!(0x6A)),
             ButtonVariant::Two(_) => hid.push_input(&gen_keyboard_report!(0x6B)),
@@ -170,20 +155,13 @@ impl ButtonVariant {
         &self,
         hid: &HIDClass<'static, hal::usb::UsbBus>,
     ) -> Result<usize, UsbError> {
-        let keyboard_report = KeyboardReport {
-            modifier: 0,
-            reserved: 0,
-            leds: 0,
-            keycodes: [0, 0, 0, 0, 0, 0],
-        };
-
         match self {
-            ButtonVariant::One(_) => hid.push_input(&keyboard_report),
-            ButtonVariant::Two(_) => hid.push_input(&keyboard_report),
-            ButtonVariant::Three(_) => hid.push_input(&keyboard_report),
-            ButtonVariant::Four(_) => hid.push_input(&keyboard_report),
-            ButtonVariant::Five(_) => hid.push_input(&keyboard_report),
-            ButtonVariant::Six(_) => hid.push_input(&keyboard_report),
+            ButtonVariant::One(_) => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Two(_) => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Three(_) => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Four(_) => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Five(_) => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Six(_) => hid.push_input(&gen_keyboard_report!(0x0)),
         }
     }
 }
