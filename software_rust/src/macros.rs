@@ -5,7 +5,7 @@ macro_rules! gen_keyboard_report {
             modifier: 0,
             reserved: 0,
             leds: 0,
-            keycodes: [0, 0, 0, 0, $usage_id, 0],
+            keycodes: [$usage_id, 0, 0, 0, 0, 0],
         }
     };
 }
