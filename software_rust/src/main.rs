@@ -9,6 +9,9 @@ mod button;
 mod debouncer;
 #[macro_use]
 mod macros;
+mod constants;
+mod hid_util;
+mod key_config;
 
 #[rtic::app(device = rp_pico::hal::pac, peripherals = true)]
 mod app {
@@ -63,6 +66,7 @@ mod app {
 
     use crate::button::Button;
     use crate::button::ButtonVariant;
+    use crate::key_config::KeyConfig;
 
     // Blink time 5 seconds
     // const SCAN_TIME_US: u32 = 12000000;
@@ -198,12 +202,30 @@ mod app {
         display.flush().unwrap();
 
         let button_array: [Button; 6] = [
-            Button::new(ButtonVariant::One(pins.gpio26.into_mode())),
-            Button::new(ButtonVariant::Two(pins.gpio27.into_mode())),
-            Button::new(ButtonVariant::Three(pins.gpio28.into_mode())),
-            Button::new(ButtonVariant::Four(pins.gpio4.into_mode())),
-            Button::new(ButtonVariant::Five(pins.gpio3.into_mode())),
-            Button::new(ButtonVariant::Six(pins.gpio2.into_mode())),
+            Button::new(ButtonVariant::One {
+                gpio: pins.gpio26.into_mode(),
+                keycode: KeyConfig::One as u8,
+            }),
+            Button::new(ButtonVariant::Two {
+                gpio: pins.gpio27.into_mode(),
+                keycode: KeyConfig::Two as u8,
+            }),
+            Button::new(ButtonVariant::Three {
+                gpio: pins.gpio28.into_mode(),
+                keycode: KeyConfig::Three as u8,
+            }),
+            Button::new(ButtonVariant::Four {
+                gpio: pins.gpio4.into_mode(),
+                keycode: KeyConfig::Four as u8,
+            }),
+            Button::new(ButtonVariant::Five {
+                gpio: pins.gpio3.into_mode(),
+                keycode: KeyConfig::Five as u8,
+            }),
+            Button::new(ButtonVariant::Six {
+                gpio: pins.gpio2.into_mode(),
+                keycode: KeyConfig::Six as u8,
+            }),
         ];
 
         for button in button_array.iter() {

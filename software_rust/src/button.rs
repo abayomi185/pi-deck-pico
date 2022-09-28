@@ -10,6 +10,7 @@ use usbd_hid::UsbError;
 use heapless::Vec;
 
 use crate::debouncer::Debouncer;
+use crate::key_config::KeyConfig;
 use crate::{gen_keyboard_report, gen_media_report};
 
 pub struct Button {
@@ -84,12 +85,30 @@ struct ReportStack {
 // }
 
 pub enum ButtonVariant {
-    One(hal::gpio::Pin<hal::gpio::bank0::Gpio26, hal::gpio::FloatingInput>),
-    Two(hal::gpio::Pin<hal::gpio::bank0::Gpio27, hal::gpio::FloatingInput>),
-    Three(hal::gpio::Pin<hal::gpio::bank0::Gpio28, hal::gpio::FloatingInput>),
-    Four(hal::gpio::Pin<hal::gpio::bank0::Gpio4, hal::gpio::FloatingInput>),
-    Five(hal::gpio::Pin<hal::gpio::bank0::Gpio3, hal::gpio::FloatingInput>),
-    Six(hal::gpio::Pin<hal::gpio::bank0::Gpio2, hal::gpio::FloatingInput>),
+    One {
+        gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio26, hal::gpio::FloatingInput>,
+        keycode: u8,
+    },
+    Two {
+        gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio27, hal::gpio::FloatingInput>,
+        keycode: u8,
+    },
+    Three {
+        gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio28, hal::gpio::FloatingInput>,
+        keycode: u8,
+    },
+    Four {
+        gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio4, hal::gpio::FloatingInput>,
+        keycode: u8,
+    },
+    Five {
+        gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio3, hal::gpio::FloatingInput>,
+        keycode: u8,
+    },
+    Six {
+        gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio2, hal::gpio::FloatingInput>,
+        keycode: u8,
+    },
 }
 
 impl ButtonVariant {
@@ -98,56 +117,56 @@ impl ButtonVariant {
 
     pub fn set_button_low_interrupt(&self, set_state: bool) {
         match self {
-            ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
-            ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
-            ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
-            ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
-            ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
-            ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::One { gpio, .. } => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Two { gpio, .. } => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Three { gpio, .. } => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Four { gpio, .. } => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Five { gpio, .. } => gpio.set_interrupt_enabled(EdgeLow, set_state),
+            ButtonVariant::Six { gpio, .. } => gpio.set_interrupt_enabled(EdgeLow, set_state),
         }
     }
 
     pub fn set_button_high_interrupt(&self, set_state: bool) {
         match self {
-            ButtonVariant::One(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
-            ButtonVariant::Two(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
-            ButtonVariant::Three(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
-            ButtonVariant::Four(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
-            ButtonVariant::Five(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
-            ButtonVariant::Six(gpio) => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::One { gpio, .. } => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Two { gpio, .. } => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Three { gpio, .. } => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Four { gpio, .. } => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Five { gpio, .. } => gpio.set_interrupt_enabled(EdgeHigh, set_state),
+            ButtonVariant::Six { gpio, .. } => gpio.set_interrupt_enabled(EdgeHigh, set_state),
         }
     }
 
     pub fn clear_button_low_interrupt(&mut self) {
         match self {
-            ButtonVariant::One(gpio) => gpio.clear_interrupt(EdgeLow),
-            ButtonVariant::Two(gpio) => gpio.clear_interrupt(EdgeLow),
-            ButtonVariant::Three(gpio) => gpio.clear_interrupt(EdgeLow),
-            ButtonVariant::Four(gpio) => gpio.clear_interrupt(EdgeLow),
-            ButtonVariant::Five(gpio) => gpio.clear_interrupt(EdgeLow),
-            ButtonVariant::Six(gpio) => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::One { gpio, .. } => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Two { gpio, .. } => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Three { gpio, .. } => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Four { gpio, .. } => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Five { gpio, .. } => gpio.clear_interrupt(EdgeLow),
+            ButtonVariant::Six { gpio, .. } => gpio.clear_interrupt(EdgeLow),
         }
     }
 
     pub fn clear_button_high_interrupt(&mut self) {
         match self {
-            ButtonVariant::One(gpio) => gpio.clear_interrupt(EdgeHigh),
-            ButtonVariant::Two(gpio) => gpio.clear_interrupt(EdgeHigh),
-            ButtonVariant::Three(gpio) => gpio.clear_interrupt(EdgeHigh),
-            ButtonVariant::Four(gpio) => gpio.clear_interrupt(EdgeHigh),
-            ButtonVariant::Five(gpio) => gpio.clear_interrupt(EdgeHigh),
-            ButtonVariant::Six(gpio) => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::One { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Two { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Three { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Four { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Five { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
+            ButtonVariant::Six { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
         }
     }
 
     pub fn send_key(&self, hid: &HIDClass<'static, hal::usb::UsbBus>) -> Result<usize, UsbError> {
         match self {
-            ButtonVariant::One(_) => hid.push_input(&gen_keyboard_report!(0x6A)),
-            ButtonVariant::Two(_) => hid.push_input(&gen_keyboard_report!(0x6B)),
-            ButtonVariant::Three(_) => hid.push_input(&gen_keyboard_report!(0x6C)),
-            ButtonVariant::Four(_) => hid.push_input(&gen_keyboard_report!(0x6D)),
-            ButtonVariant::Five(_) => hid.push_input(&gen_keyboard_report!(0x6E)),
-            ButtonVariant::Six(_) => hid.push_input(&gen_keyboard_report!(0x6F)),
+            ButtonVariant::One { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
+            ButtonVariant::Two { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
+            ButtonVariant::Three { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
+            ButtonVariant::Four { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
+            ButtonVariant::Five { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
+            ButtonVariant::Six { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
         }
     }
 
@@ -156,12 +175,12 @@ impl ButtonVariant {
         hid: &HIDClass<'static, hal::usb::UsbBus>,
     ) -> Result<usize, UsbError> {
         match self {
-            ButtonVariant::One(_) => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Two(_) => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Three(_) => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Four(_) => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Five(_) => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Six(_) => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::One { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Two { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Three { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Four { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Five { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
+            ButtonVariant::Six { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
         }
     }
 }
@@ -172,23 +191,23 @@ impl InputPin for ButtonVariant {
 
     fn is_high(&self) -> Result<bool, Self::Error> {
         match self {
-            ButtonVariant::One(gpio) => gpio.is_high(),
-            ButtonVariant::Two(gpio) => gpio.is_high(),
-            ButtonVariant::Three(gpio) => gpio.is_high(),
-            ButtonVariant::Four(gpio) => gpio.is_high(),
-            ButtonVariant::Five(gpio) => gpio.is_high(),
-            ButtonVariant::Six(gpio) => gpio.is_high(),
+            ButtonVariant::One { gpio, .. } => gpio.is_high(),
+            ButtonVariant::Two { gpio, .. } => gpio.is_high(),
+            ButtonVariant::Three { gpio, .. } => gpio.is_high(),
+            ButtonVariant::Four { gpio, .. } => gpio.is_high(),
+            ButtonVariant::Five { gpio, .. } => gpio.is_high(),
+            ButtonVariant::Six { gpio, .. } => gpio.is_high(),
         }
     }
 
     fn is_low(&self) -> Result<bool, Self::Error> {
         match self {
-            ButtonVariant::One(gpio) => gpio.is_low(),
-            ButtonVariant::Two(gpio) => gpio.is_low(),
-            ButtonVariant::Three(gpio) => gpio.is_low(),
-            ButtonVariant::Four(gpio) => gpio.is_low(),
-            ButtonVariant::Five(gpio) => gpio.is_low(),
-            ButtonVariant::Six(gpio) => gpio.is_low(),
+            ButtonVariant::One { gpio, .. } => gpio.is_low(),
+            ButtonVariant::Two { gpio, .. } => gpio.is_low(),
+            ButtonVariant::Three { gpio, .. } => gpio.is_low(),
+            ButtonVariant::Four { gpio, .. } => gpio.is_low(),
+            ButtonVariant::Five { gpio, .. } => gpio.is_low(),
+            ButtonVariant::Six { gpio, .. } => gpio.is_low(),
         }
     }
 }
