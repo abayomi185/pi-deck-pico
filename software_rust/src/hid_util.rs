@@ -31,20 +31,15 @@ impl CustomKeycode {
         }
     }
 
-    fn get_keycode_array(&mut self) {}
-
-    // pub fn get_array(&mut self) -> [u8; 6] {
-    //     let mut cloned_vec = self.array.clone();
-    //     cloned_vec.resize(6, 0).unwrap();
-    //     cloned_vec.into_array().unwrap()
-    // }
-
-    // pub fn append(&mut self, keycode: u8) {
-    //     self.array.push(keycode).unwrap();
-    //     self.index_map
-    //         .insert(keycode, self.array.len() as u8)
-    //         .unwrap();
-    // }
+    fn get_keycode_array(&mut self) -> [u8; 6] {
+        let mut array_vec = self
+            .index_map
+            .iter()
+            .map(|(k, _)| *k)
+            .collect::<Vec<u8, 6>>();
+        let _ = array_vec.resize(BUTTON_COUNT, 0);
+        array_vec.into_array().unwrap()
+    }
 }
 
 pub struct HIDUtil {
@@ -74,6 +69,14 @@ impl HIDUtil {
             KeyMode::Keyboard => {
                 let keycode = self.key_config[button_id][0];
                 self.custom_keycode.index_map.insert(keycode, true).unwrap();
+                // If mode changes, do nothing
+                if !self.has_mode_changed() {
+                    let _ = self
+                        .hid_keyboard
+                        .push_input(&gen_keyboard_report!(@array self
+                        .custom_keycode
+                        .get_keycode_array()));
+                }
             }
             KeyMode::Media => {
                 let media_key = self.key_config[button_id][1];
@@ -96,7 +99,21 @@ impl HIDUtil {
         }
     }
 
-    // pub fn send_keyboard_report(&self, report: KeyboardReport) {
-    //     let _ = self.hid.push_input(&report);
-    // }
+    fn has_mode_changed(&mut self) -> bool {
+        let key_status: bool = self
+            .custom_keycode
+            .index_map
+            .iter()
+            .map(|(k, _)| MODE_SWITCH_BUTTONS.contains(k))
+            .reduce(|a, b| a && b)
+            .unwrap();
+
+        if key_status {
+            match self.mode {
+                KeyMode::Keyboard => self.mode = KeyMode::Media,
+                KeyMode::Media => self.mode = KeyMode::Keyboard,
+            }
+        };
+        key_status
+    }
 }

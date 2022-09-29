@@ -14,3 +14,5 @@ pub const MEDIAKEY_MUTE: u8 = 0xB2;
 pub const MEDIAKEY_PREVTRACK: u8 = 0xB6;
 pub const MEDIAKEY_NEXTTRACK: u8 = 0xB5;
 pub const MEDIAKEY_NONE: u8 = 0x00;
+
+pub const MODE_SWITCH_BUTTONS: [u8; 2] = [KEYCODE_1, KEYCODE_2];
