@@ -1,9 +1,38 @@
-// USB Scan code for F14 to F19
+// TODO: Change all this to an enum map
+
+// use heapless::FnvIndexMap;
+use enum_map::{enum_map, Enum, EnumMap};
+
+use usbd_hid::descriptor::MediaKey;
+
+use crate::constants::*;
+
+// let config_map = FnvIndexMap::<u8, KeyConfig, 6>::new();
+
+pub enum KeyMode {
+    Keyboard,
+    Media,
+}
+
+#[derive(Enum)]
 pub enum KeyConfig {
-    One = 0x69,
-    Two = 0x6A,
-    Three = 0x6B,
-    Four = 0x6C,
-    Five = 0x6D,
-    Six = 0x6E,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+}
+
+impl KeyConfig {
+    pub fn new() -> EnumMap<KeyConfig, [u8; 2]> {
+        enum_map! {
+            KeyConfig::One => [KEYCODE_1, MEDIAKEY_PLAYPAUSE],
+            KeyConfig::Two => [KEYCODE_2, MEDIAKEY_NONE],
+            KeyConfig::Three => [KEYCODE_3, MEDIAKEY_VOLUP],
+            KeyConfig::Four => [KEYCODE_4, MEDIAKEY_VOLDOWN],
+            KeyConfig::Five => [KEYCODE_5, MEDIAKEY_PREVTRACK],
+            KeyConfig::Six => [KEYCODE_6, MEDIAKEY_NEXTTRACK],
+        }
+    }
 }

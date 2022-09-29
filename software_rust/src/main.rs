@@ -204,27 +204,27 @@ mod app {
         let button_array: [Button; 6] = [
             Button::new(ButtonVariant::One {
                 gpio: pins.gpio26.into_mode(),
-                keycode: KeyConfig::One as u8,
+                id: KeyConfig::One,
             }),
             Button::new(ButtonVariant::Two {
                 gpio: pins.gpio27.into_mode(),
-                keycode: KeyConfig::Two as u8,
+                id: KeyConfig::Two,
             }),
             Button::new(ButtonVariant::Three {
                 gpio: pins.gpio28.into_mode(),
-                keycode: KeyConfig::Three as u8,
+                id: KeyConfig::Three,
             }),
             Button::new(ButtonVariant::Four {
                 gpio: pins.gpio4.into_mode(),
-                keycode: KeyConfig::Four as u8,
+                id: KeyConfig::Four,
             }),
             Button::new(ButtonVariant::Five {
                 gpio: pins.gpio3.into_mode(),
-                keycode: KeyConfig::Five as u8,
+                id: KeyConfig::Five,
             }),
             Button::new(ButtonVariant::Six {
                 gpio: pins.gpio2.into_mode(),
-                keycode: KeyConfig::Six as u8,
+                id: KeyConfig::Six,
             }),
         ];
 

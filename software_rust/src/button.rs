@@ -87,27 +87,27 @@ struct ReportStack {
 pub enum ButtonVariant {
     One {
         gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio26, hal::gpio::FloatingInput>,
-        keycode: u8,
+        id: KeyConfig,
     },
     Two {
         gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio27, hal::gpio::FloatingInput>,
-        keycode: u8,
+        id: KeyConfig,
     },
     Three {
         gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio28, hal::gpio::FloatingInput>,
-        keycode: u8,
+        id: KeyConfig,
     },
     Four {
         gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio4, hal::gpio::FloatingInput>,
-        keycode: u8,
+        id: KeyConfig,
     },
     Five {
         gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio3, hal::gpio::FloatingInput>,
-        keycode: u8,
+        id: KeyConfig,
     },
     Six {
         gpio: hal::gpio::Pin<hal::gpio::bank0::Gpio2, hal::gpio::FloatingInput>,
-        keycode: u8,
+        id: KeyConfig,
     },
 }
 
@@ -161,12 +161,12 @@ impl ButtonVariant {
 
     pub fn send_key(&self, hid: &HIDClass<'static, hal::usb::UsbBus>) -> Result<usize, UsbError> {
         match self {
-            ButtonVariant::One { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
-            ButtonVariant::Two { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
-            ButtonVariant::Three { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
-            ButtonVariant::Four { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
-            ButtonVariant::Five { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
-            ButtonVariant::Six { keycode, .. } => hid.push_input(&gen_keyboard_report!(*keycode)),
+            ButtonVariant::One { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Two { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Three { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Four { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Five { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Six { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
         }
     }
 
