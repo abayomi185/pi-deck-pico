@@ -10,6 +10,7 @@ mod debouncer;
 #[macro_use]
 mod macros;
 mod constants;
+mod display;
 mod hid_util;
 mod key_config;
 
@@ -66,6 +67,7 @@ mod app {
 
     use crate::button::Button;
     use crate::button::ButtonVariant;
+    use crate::hid_util::HIDUtil;
     use crate::key_config::KeyConfig;
 
     // Blink time 5 seconds
@@ -94,6 +96,7 @@ mod app {
         serial: SerialPort<'static, hal::usb::UsbBus>,
         usb_hid_keyboard: HIDClass<'static, hal::usb::UsbBus>,
         usb_hid_media: HIDClass<'static, hal::usb::UsbBus>,
+        hid_util: HIDUtil,
         usb_dev: usb_device::device::UsbDevice<'static, hal::usb::UsbBus>,
         button_array: [Button; 6],
         led: hal::gpio::Pin<hal::gpio::pin::bank0::Gpio25, hal::gpio::ReadableOutput>,
@@ -144,6 +147,9 @@ mod app {
         let serial = SerialPort::new(usb_bus);
         let usb_hid_keyboard = HIDClass::new(usb_bus, KeyboardReport::desc(), 60);
         let usb_hid_media = HIDClass::new(usb_bus, MediaKeyboardReport::desc(), 60);
+
+        // Helper struct to manage the HID keyboard and media keys.
+        let hid_util = HIDUtil::new();
 
         // Create a USB device with a fake VID and PID
         let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
@@ -243,6 +249,7 @@ mod app {
                 serial,
                 usb_hid_keyboard,
                 usb_hid_media,
+                hid_util,
                 usb_dev,
                 button_array,
                 led,
@@ -307,13 +314,18 @@ mod app {
     #[task(
         binds = IO_IRQ_BANK0,
         priority = 4,
-        shared = [led, serial, timer, alarm1, alarm2, button_array, usb_hid_keyboard, usb_hid_media]
+        shared = [led, serial, timer, alarm1, alarm2, display, button_array, usb_hid_keyboard, usb_hid_media, hid_util]
     )]
     fn handle_button(ctx: handle_button::Context) {
         let led = ctx.shared.led;
         let button_array = ctx.shared.button_array;
 
+        let display = ctx.shared.display;
+
         let usb_hid_keyboard = ctx.shared.usb_hid_keyboard;
+        let usb_hid_media = ctx.shared.usb_hid_media;
+        let hid_util = ctx.shared.hid_util;
+
         let serial = ctx.shared.serial;
 
         let timer = ctx.shared.timer;
@@ -325,12 +337,24 @@ mod app {
             timer,
             alarm1,
             alarm2,
+            display,
             button_array,
             led,
             usb_hid_keyboard,
+            usb_hid_media,
+            hid_util,
         )
             .lock(
-                |serial_a, timer_a, alarm_a, alarm_b, button_array_a, led_a, usb_hid_keyboard_a| {
+                |serial_a,
+                 timer_a,
+                 alarm_a,
+                 alarm_b,
+                 display_a,
+                 button_array_a,
+                 led_a,
+                 usb_hid_keyboard_a,
+                 usb_hid_media_a,
+                 hid_util_a| {
                     // TODO: This is running multiple times, not expected behaviour.
                     // It does not break and turns off led as it turns it on except last key.
                     // Return boolean from is_low and use it to determine break.
@@ -379,8 +403,14 @@ mod app {
                                 .unwrap();
                             write_serial(serial_a, serial_message_3.as_str(), false);
 
-                            // usb_action
-                            let _ = button.variant.release_key(usb_hid_keyboard_a);
+                            // usb hid action
+                            // let _ = button.variant.release_key(usb_hid_keyboard_a);
+                            hid_util_a.release_input(
+                                usb_hid_keyboard_a,
+                                usb_hid_media_a,
+                                button.variant.get_id(),
+                                display_a,
+                            );
 
                             //     let _ = led_a.toggle();
                             // button.variant.clear_button_high_interrupt();
@@ -392,32 +422,27 @@ mod app {
                             // improvements using this but there are numerous miss clicks and delayed presses
                             button.reset();
 
-                            // let mut count_down = timer_a.count_down();
-                            // count_down.start(200.millis());
-                            // let _ = nb::block!(count_down.wait());
-
                             serial_message_2
                                 .push_str(&String::<32>::from("A_"))
                                 .unwrap();
                             write_serial(serial_a, serial_message_2.as_str(), false);
 
                             let _ = led_a.toggle();
-                            let _ = button.variant.send_key(usb_hid_keyboard_a);
 
-                            // button.variant.clear_button_low_interrupt();
-                            // button.variant.set_button_low_interrupt(false);
+                            // usb hid action
+                            // let _ = button.variant.send_key(usb_hid_keyboard_a);
+                            hid_util_a.push_input(
+                                usb_hid_keyboard_a,
+                                usb_hid_media_a,
+                                button.variant.get_id(),
+                                display_a,
+                            );
+
                             button.variant.set_button_high_interrupt(true);
 
-                            // let mut count_down = timer_a.count_down();
-                            // count_down.start(100.millis());
-                            // let _ = nb::block!(count_down.wait());
                             button.to_be_released = true;
                         }
                     }
-
-                    // for button in button_array_a.iter_mut() {
-                    //     button.variant.set_button_low_interrupt(true);
-                    // }
 
                     for button in button_array_a.iter_mut() {
                         button.variant.clear_button_low_interrupt();

@@ -3,11 +3,9 @@ use embedded_hal::digital::v2::InputPin;
 use rp_pico::hal;
 use rp_pico::hal::gpio::Interrupt::{EdgeHigh, EdgeLow};
 
-use usbd_hid::descriptor::{KeyboardReport, MediaKey, MediaKeyboardReport, SerializedDescriptor};
+use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport};
 use usbd_hid::hid_class::HIDClass;
 use usbd_hid::UsbError;
-
-use heapless::Vec;
 
 use crate::debouncer::Debouncer;
 use crate::key_config::KeyConfig;
@@ -69,9 +67,9 @@ impl Button {
 }
 
 // TODO: Implement a stack for concurrently pressed buttons to send via usb_hid
-struct ReportStack {
-    stack: Vec<KeyboardReport, 6>,
-}
+// struct ReportStack {
+//     stack: Vec<KeyboardReport, 6>,
+// }
 
 // Trait example for future reference
 // trait ButtonDo {
@@ -161,12 +159,12 @@ impl ButtonVariant {
 
     pub fn send_key(&self, hid: &HIDClass<'static, hal::usb::UsbBus>) -> Result<usize, UsbError> {
         match self {
-            ButtonVariant::One { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Two { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Three { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Four { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Five { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Six { id, .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::One { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Two { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Three { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Four { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Five { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
+            ButtonVariant::Six { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
         }
     }
 
@@ -181,6 +179,17 @@ impl ButtonVariant {
             ButtonVariant::Four { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
             ButtonVariant::Five { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
             ButtonVariant::Six { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
+        }
+    }
+
+    pub fn get_id(&self) -> KeyConfig {
+        match self {
+            ButtonVariant::One { id, .. } => *id,
+            ButtonVariant::Two { id, .. } => *id,
+            ButtonVariant::Three { id, .. } => *id,
+            ButtonVariant::Four { id, .. } => *id,
+            ButtonVariant::Five { id, .. } => *id,
+            ButtonVariant::Six { id, .. } => *id,
         }
     }
 }

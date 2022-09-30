@@ -1,20 +1,17 @@
 // TODO: Change all this to an enum map
 
-// use heapless::FnvIndexMap;
 use enum_map::{enum_map, Enum, EnumMap};
 
-use usbd_hid::descriptor::MediaKey;
+// use usbd_hid::descriptor::MediaKey;
 
 use crate::constants::*;
-
-// let config_map = FnvIndexMap::<u8, KeyConfig, 6>::new();
 
 pub enum KeyMode {
     Keyboard,
     Media,
 }
 
-#[derive(Enum)]
+#[derive(Enum, Clone, Copy)]
 pub enum KeyConfig {
     One,
     Two,
