@@ -7,6 +7,7 @@ use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport};
 use usbd_hid::hid_class::HIDClass;
 use usbd_hid::UsbError;
 
+use crate::constants::*;
 use crate::debouncer::Debouncer;
 use crate::key_config::KeyConfig;
 use crate::{gen_keyboard_report, gen_media_report};
@@ -22,8 +23,7 @@ impl Button {
     pub fn new(variant: ButtonVariant) -> Self {
         Self {
             variant,
-            // 25ms debounce
-            debouncer: Debouncer::new(25_000),
+            debouncer: Debouncer::new(DEBOUNCE_US),
             is_pressed: false,
             to_be_released: false,
         }

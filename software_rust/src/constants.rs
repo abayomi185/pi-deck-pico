@@ -11,6 +11,9 @@
 // PERF: hi : I'm a performance issue
 // FIX: hi : I need to be fixed
 
+// 25ms debounce - initial default
+pub const DEBOUNCE_US: u32 = 25_000;
+
 pub const BUTTON_COUNT: usize = 6;
 pub const INDEX_MAP_SIZE: usize = 8; // Must be power of 2
 

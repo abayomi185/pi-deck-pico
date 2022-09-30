@@ -28,6 +28,8 @@ pub fn show_text(
         .text_color(BinaryColor::On)
         .build();
 
+    display.clear();
+
     Text::with_baseline(custom_text, Point::zero(), text_style, Baseline::Top)
         .draw(display)
         .unwrap();
