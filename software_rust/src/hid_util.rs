@@ -198,7 +198,6 @@ impl HIDUtil {
             // };
 
             return key_status;
-            // return true;
         }
         // If condition not met, return false
         false
