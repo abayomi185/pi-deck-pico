@@ -3,14 +3,9 @@ use embedded_hal::digital::v2::InputPin;
 use rp_pico::hal;
 use rp_pico::hal::gpio::Interrupt::{EdgeHigh, EdgeLow};
 
-use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport};
-use usbd_hid::hid_class::HIDClass;
-use usbd_hid::UsbError;
-
 use crate::constants::*;
 use crate::debouncer::Debouncer;
 use crate::key_config::KeyConfig;
-use crate::{gen_keyboard_report, gen_media_report};
 
 pub struct Button {
     pub variant: ButtonVariant,
@@ -154,31 +149,6 @@ impl ButtonVariant {
             ButtonVariant::Four { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
             ButtonVariant::Five { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
             ButtonVariant::Six { gpio, .. } => gpio.clear_interrupt(EdgeHigh),
-        }
-    }
-
-    pub fn send_key(&self, hid: &HIDClass<'static, hal::usb::UsbBus>) -> Result<usize, UsbError> {
-        match self {
-            ButtonVariant::One { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Two { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Three { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Four { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Five { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-            ButtonVariant::Six { .. } => hid.push_input(&gen_keyboard_report!(0x69)),
-        }
-    }
-
-    pub fn release_key(
-        &self,
-        hid: &HIDClass<'static, hal::usb::UsbBus>,
-    ) -> Result<usize, UsbError> {
-        match self {
-            ButtonVariant::One { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Two { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Three { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Four { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Five { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
-            ButtonVariant::Six { .. } => hid.push_input(&gen_keyboard_report!(0x0)),
         }
     }
 
