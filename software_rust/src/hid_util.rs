@@ -96,6 +96,10 @@ impl HIDUtil {
                 let keycode = self.key_config[button_id][0];
                 self.custom_keycode.index_map.insert(keycode, true).unwrap();
 
+                // Keycode check - print keycode to display
+                let keycode_string: String<4> = String::from(keycode);
+                display::show_text(display, keycode_string.as_str());
+
                 // If mode changes, release all keys
                 if self.is_mode_switch_pressed() {
                     let _ = hid_keyboard.push_input(&gen_keyboard_report!(@array [0; 6]));
@@ -115,22 +119,27 @@ impl HIDUtil {
                     .insert(media_key, true)
                     .unwrap();
 
+                // Media Key check - print keycode to display
+                let media_key_string: String<4> = String::from(media_key);
+                display::show_text(display, media_key_string.as_str());
+
                 // If mode changes, release all keys
                 if self.is_mode_switch_pressed() {
-                    let _ = hid_media.push_input(&gen_media_report!(MEDIAKEY_NONE as u16));
+                    let _ = hid_media.push_input(&gen_media_report!(MEDIAKEY_NONE));
                     self.custom_keycode.index_map.clear();
                     self.change_mode();
                     return;
                 }
 
-                let _ = hid_keyboard.push_input(&gen_media_report!(
-                    *self.custom_keycode.index_map.last().unwrap().0 as u16 // media_key as u16
+                let _ = hid_media.push_input(&gen_media_report!(
+                    *self.custom_keycode.index_map.last().unwrap().0 // media_key as u16
+                                                                     // 0xCD
                 ));
             }
         }
 
         // Testing with display
-        display::show_text(display, "pushed")
+        // display::show_text(display, "pushed")
     }
 
     pub fn release_input(
@@ -148,11 +157,10 @@ impl HIDUtil {
             KeyMode::Keyboard => {
                 let keycode = self.key_config[button_id][0];
 
-                // Error check - print keycode to display
-                // let mut error_message: String<8> = String::new();
-                // let keycode_string: String<1> = String::from(keycode as u8);
-                // error_message.push_str(&keycode_string).unwrap();
-                // display::show_text(display, error_message.as_str());
+                // Keycode check - print keycode to display
+                // let keycode_string: String<4> = String::from(keycode);
+                // display::show_text(display, keycode_string.as_str());
+                display::show_text(display, "released");
 
                 if !self.custom_keycode.index_map.is_empty() {
                     self.custom_keycode.index_map.remove(&keycode);
@@ -162,17 +170,22 @@ impl HIDUtil {
                 }
             }
             KeyMode::Media => {
-                let keycode = self.key_config[button_id][1];
+                let media_key = self.key_config[button_id][1];
+
+                // Media Key check - print keycode to display
+                // let media_key_string: String<4> = String::from(media_key);
+                // display::show_text(display, media_key_string.as_str());
+                display::show_text(display, "released");
 
                 if !self.custom_keycode.index_map.is_empty() {
-                    self.custom_keycode.index_map.remove(&keycode);
-                    let _ = hid_media.push_input(&gen_media_report!(MEDIAKEY_NONE as u16));
+                    self.custom_keycode.index_map.remove(&media_key);
+                    let _ = hid_media.push_input(&gen_media_report!(MEDIAKEY_NONE));
                 }
             }
         }
 
         // Testing with display
-        display::show_text(display, "released")
+        // display::show_text(display, "released")
     }
 
     fn is_mode_switch_pressed(&mut self) -> bool {
