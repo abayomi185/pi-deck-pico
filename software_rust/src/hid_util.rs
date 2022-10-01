@@ -5,6 +5,16 @@ use rp_pico::hal;
 use usbd_hid::hid_class::HIDClass;
 // use usbd_hid::UsbError;
 
+use usbd_human_interface_device::device::consumer::{
+    ConsumerControlInterface, MultipleConsumerReport,
+};
+use usbd_human_interface_device::device::keyboard::{
+    KeyboardLedsReport, NKROBootKeyboardInterface,
+};
+use usbd_human_interface_device::page::Consumer;
+use usbd_human_interface_device::page::Keyboard;
+use usbd_human_interface_device::prelude::*;
+
 use crate::{gen_keyboard_report, gen_media_report};
 use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport};
 
@@ -18,9 +28,8 @@ type DisplayI2C = hal::I2C<
 >;
 
 use heapless::FnvIndexMap;
-use heapless::String;
+// use heapless::String;
 use heapless::Vec;
-// use heapless::spsc::Queue;
 
 use crate::constants::*;
 use crate::display;

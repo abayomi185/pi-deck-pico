@@ -46,9 +46,19 @@ mod app {
     // USB Communications Class Device support
     use usbd_serial::SerialPort;
     // USB HID Class Device support
-    use usbd_hid::descriptor::generator_prelude::*;
-    use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport};
+    // use usbd_hid::descriptor::generator_prelude::*;
+    // use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport};
     use usbd_hid::hid_class::HIDClass;
+
+    use usbd_human_interface_device::device::consumer::{
+        ConsumerControlInterface, MultipleConsumerReport,
+    };
+    use usbd_human_interface_device::device::keyboard::{
+        KeyboardLedsReport, NKROBootKeyboardInterface,
+    };
+    use usbd_human_interface_device::page::Consumer;
+    use usbd_human_interface_device::page::Keyboard;
+    use usbd_human_interface_device::prelude::*;
 
     use embedded_graphics::{
         image::{Image, ImageRaw},
@@ -145,8 +155,12 @@ mod app {
 
         // Set up the USB Communications Class Device driver.
         let serial = SerialPort::new(usb_bus);
-        let usb_hid_keyboard = HIDClass::new(usb_bus, KeyboardReport::desc(), 60);
-        let usb_hid_media = HIDClass::new(usb_bus, MediaKeyboardReport::desc(), 60);
+        // let usb_hid_keyboard = HIDClass::new(usb_bus, KeyboardReport::desc(), 60);
+        // let usb_hid_media = HIDClass::new(usb_bus, MediaKeyboardReport::desc(), 60);
+
+        let mut keyboard = UsbHidClassBuilder::new()
+            .add_interface(NKROBootKeyboardInterface::default_config())
+            .build(&usb_bus);
 
         // Helper struct to manage the HID keyboard and media keys.
         let hid_util = HIDUtil::new();
